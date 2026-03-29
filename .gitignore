@@ -1,0 +1,11 @@
+.npmrc
+node_modules
+dist
+
+# references
+reference-backend/*
+reference-transcodes-mcp/*
+
+# environment variables (예시는 커밋: .env.example)
+.env*
+!.env.example

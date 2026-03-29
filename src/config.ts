@@ -32,13 +32,16 @@ function parseEndpointMapJson(raw: string): Map<string, string> {
 
 /** process.env에서 ProxyConfig 조립. dotenv는 index.ts에서 선로드 */
 export function loadConfig(): ProxyConfig {
-  const backendUrl = process.env.TRANSCODES_BACKEND_URL?.trim().replace(/\/$/, '');
+  const backendUrl = process.env.TRANSCODES_BACKEND_URL?.trim().replace(
+    /\/$/,
+    ''
+  );
   if (!backendUrl) throw new Error('TRANSCODES_BACKEND_URL is required');
 
   const apiKey = process.env.TRANSCODES_API_KEY ?? '';
   if (!apiKey) {
     throw new Error(
-      'TRANSCODES_API_KEY is required (organization API key from Transcodes console)',
+      'TRANSCODES_API_KEY is required (organization API key from Transcodes console)'
     );
   }
 
@@ -48,7 +51,8 @@ export function loadConfig(): ProxyConfig {
     throw new Error(`TRANSCODES_BACKEND_URL is not a valid URL: ${backendUrl}`);
   }
 
-  const defaultProjectId = process.env.TRANSCODES_PROJECT_ID?.trim() || undefined;
+  const defaultProjectId =
+    process.env.TRANSCODES_PROJECT_ID?.trim() || undefined;
   const apiBaseV1 = `${backendUrl}/v1`;
 
   const endpointsRaw = process.env.TRANSCODES_BACKEND_ENDPOINTS?.trim();
@@ -59,7 +63,7 @@ export function loadConfig(): ProxyConfig {
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e);
       throw new Error(
-        `TRANSCODES_BACKEND_ENDPOINTS must be valid JSON: {"tool":"/path",...} — ${detail}`,
+        `TRANSCODES_BACKEND_ENDPOINTS must be valid JSON: {"tool":"/path",...} — ${detail}`
       );
     }
   }

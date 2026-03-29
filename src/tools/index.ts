@@ -8,9 +8,11 @@ import type { ProxyConfig } from '../config.ts';
 import { parse, type ProxyTool } from './tool-utils.ts';
 
 import { instructionsTools } from './instructions.ts';
+import { jwkTools } from './jwk.ts';
 import { auditTools } from './audit.ts';
 import { authenticatorsTools } from './authenticators.ts';
 import { httpTools } from './http.ts';
+import { membershipTools } from './membership.ts';
 import { membersTools } from './members.ts';
 import { otpTools } from './otp.ts';
 import { passcodeTools } from './passcode.ts';
@@ -22,9 +24,11 @@ import { totpTools } from './totp.ts';
 
 const ALL_TOOLS: ProxyTool[] = [
   ...instructionsTools,
+  ...jwkTools,
   ...auditTools,
   ...projectTools,
   ...rbacTools,
+  ...membershipTools,
   ...membersTools,
   ...authenticatorsTools,
   ...passkeysTools,

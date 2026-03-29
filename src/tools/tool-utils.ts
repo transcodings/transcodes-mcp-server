@@ -63,8 +63,20 @@ function blockedJson(message: string): string {
   return JSON.stringify({ ok: false, blocked: true, message }, null, 2);
 }
 
+/** 플랜 한도 초과 errorCode 목록 */
+const PLAN_LIMIT_ERROR_CODES = new Set([
+  'ROLE_LIMIT_REACHED',
+  'RESOURCE_LIMIT_REACHED',
+  'MEMBER_LIMIT_REACHED',
+  'PROJECT_LIMIT_REACHED',
+]);
+
+const UPGRADE_HINT =
+  'Would you like to upgrade your plan? Use the membership_create_checkout_session tool to instantly generate a Stripe Checkout link for the Standard plan.';
+
 /**
  * TRANSCODES_BACKEND_ENDPOINTS 맵의 base 경로 + pathSuffix로 최종 URL 구성 후 요청.
+ * 403 + 플랜 한도 에러 응답이면 upgradeHint 필드를 추가해 반환.
  */
 export async function req(
   config: ProxyConfig,
@@ -85,7 +97,34 @@ export async function req(
   }
   const base = map.get(toolName)!;
   const path = pathSuffix ? `${base}${pathSuffix}` : base;
-  return request(config, { ...input, path });
+  const raw = await request(config, { ...input, path });
+
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (
+      parsed !== null &&
+      typeof parsed === 'object' &&
+      !Array.isArray(parsed)
+    ) {
+      const p = parsed as Record<string, unknown>;
+      const data = p.data;
+      if (
+        p.status === 403 &&
+        data !== null &&
+        typeof data === 'object' &&
+        !Array.isArray(data)
+      ) {
+        const errorCode = (data as Record<string, unknown>).errorCode;
+        if (typeof errorCode === 'string' && PLAN_LIMIT_ERROR_CODES.has(errorCode)) {
+          return JSON.stringify({ ...p, upgradeHint: UPGRADE_HINT }, null, 2);
+        }
+      }
+    }
+  } catch {
+    // JSON 파싱 실패 시 원본 그대로 반환
+  }
+
+  return raw;
 }
 
 /** JSON Schema: project_id (도구 스키마에 공통 삽입) */

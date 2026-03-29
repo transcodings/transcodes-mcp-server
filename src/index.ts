@@ -2,7 +2,7 @@
 import 'dotenv/config';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { loadConfig } from './config.ts';
-import { createMcpServer, log, VERSION } from './server.ts';
+import { createMcpServer, log } from './server.ts';
 import { startTunnel } from './tunnel.ts';
 import { startSseServer } from './sse.ts';
 
@@ -11,8 +11,6 @@ const DEFAULT_PORT = 3000;
 async function main(): Promise<void> {
   const config = loadConfig();
   const port = parseInt(process.env.MCP_PORT ?? String(DEFAULT_PORT), 10);
-
-  log(`starting v${VERSION} → ${config.backendUrl}`);
 
   // If NGROK_AUTHTOKEN or ZROK_TOKEN is set: SSE + tunnel; otherwise: stdio
   const tunnel = await startTunnel(port);
@@ -25,14 +23,14 @@ async function main(): Promise<void> {
 
     process.stderr.write(
       '\n' +
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
-      '🚀 Transcodes MCP is ready!\n' +
-      '   Paste this URL into your web IDE MCP settings:\n' +
-      '\n' +
-      `   ${tunnel.publicUrl}/mcp\n` +
-      '\n' +
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
-      '\n',
+        '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+        '🚀 Transcodes MCP is ready!\n' +
+        '   Paste this URL into your web IDE MCP settings:\n' +
+        '\n' +
+        `   ${tunnel.publicUrl}/mcp\n` +
+        '\n' +
+        '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+        '\n'
     );
 
     const shutdown = async () => {

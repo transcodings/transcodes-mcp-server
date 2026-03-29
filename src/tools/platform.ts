@@ -234,13 +234,6 @@ export const platformTools: ProxyTool[] = [
       req(config, { method: 'GET' }, 'membership_plans_limits'),
   },
   {
-    name: 'membership_customer_status',
-    description: '활성 구독 상태.',
-    inputSchema: { type: 'object', properties: {} },
-    handler: async (_a, config) =>
-      req(config, { method: 'GET' }, 'membership_customer_status'),
-  },
-  {
     name: 'membership_customer_status_by_project',
     description: '프로젝트 기준 구독 (SkipAuth).',
     inputSchema: {
@@ -256,16 +249,10 @@ export const platformTools: ProxyTool[] = [
   },
   {
     name: 'membership_create_checkout_session',
-    description: 'Stripe Checkout URL.',
+    description:
+      'POST /v1/membership/mcp/session — Stripe Checkout URL via API key (MCP checkout).',
     inputSchema: bodyOnlyInputSchema,
     handler: async (a, config) =>
       req(config, { method: 'POST', body: a.body }, 'membership_create_checkout_session'),
-  },
-  {
-    name: 'membership_create_portal_session',
-    description: 'Stripe Customer Portal URL.',
-    inputSchema: { type: 'object', properties: {} },
-    handler: async (_a, config) =>
-      req(config, { method: 'POST' }, 'membership_create_portal_session'),
   },
 ];

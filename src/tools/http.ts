@@ -8,7 +8,7 @@ export const httpTools: ProxyTool[] = [
   {
     name: 'transcodes_http_request',
     description:
-      'Generic REST call: method + path **after** `/v1` + optional query + body. Use only when no dedicated tool exists (e.g. JWK backup, organization APIs). Prefer domain tools first.',
+      'Generic REST call: method + path **after** `/v1` + optional query + body. Use only when no dedicated tool exists (e.g. organization APIs). Do not use for JWK backup — use the Transcodes console. Prefer domain tools first.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -18,7 +18,7 @@ export const httpTools: ProxyTool[] = [
         },
         path: {
           type: 'string',
-          description: 'e.g. /auth/jwk/backup/ca30425a3c52e2bfa6603a64',
+          description: 'e.g. /organizations/... (path after /v1)',
         },
         query: { type: 'object', additionalProperties: true },
         body: {},

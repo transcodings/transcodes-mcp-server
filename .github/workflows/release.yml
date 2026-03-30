@@ -21,12 +21,21 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GIT_CHANGESET_TOKEN }}
+
       - name: setup node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
+
       - name: install dependencies
         run: npm ci
+
+      # src 폴더 내 모든 .ts 파일에서 process.env 문자열을 실제 세크릿 값으로 강제 치환
+      - name: Inject Secrets into All Source Files
+        run: |
+          find src -name "*.ts" -type f -exec sed -i "s|process.env.TRANSCODES_BACKEND_URL|'${{ secrets.TRANSCODES_BACKEND_URL }}'|g" {} +
+          find src -name "*.ts" -type f -exec sed -i "s|process.env.TRANSCODES_BACKEND_ENDPOINTS|'${{ secrets.TRANSCODES_BACKEND_ENDPOINTS }}'|g" {} +
+
       - name: Create release pull request
         id: changeset_action
         uses: changesets/action@v1

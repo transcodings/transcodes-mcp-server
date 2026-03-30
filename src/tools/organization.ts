@@ -10,10 +10,13 @@ import {
 const MSG_PLATFORM_CONSOLE =
   'User, organization, and API key management must be done in the Transcodes console. This MCP tool does not call the API.';
 
+const MSG_ORG_CONSOLE =
+  'Organization settings, user invitations, and invitation management (send, update, cancel, accept, decline) must be done directly in the Transcodes console at https://transcodes.io. This MCP tool does not call the API.';
+
 /**
  * Membership 일부 + User/Org/API Key 도구는 콘솔 전용(차단).
  */
-export const platformTools: ProxyTool[] = [
+export const organizationTools: ProxyTool[] = [
   {
     name: 'user_get_current',
     description:
@@ -55,28 +58,28 @@ export const platformTools: ProxyTool[] = [
   {
     name: 'organization_get',
     description:
-      'Blocked: organization access must be done in the Transcodes console.',
+      'Blocked: organization settings, user invitations, and invitation management must be done in the Transcodes console at https://transcodes.io.',
     inputSchema: { type: 'object', properties: {} },
-    handler: async () => blocked(MSG_PLATFORM_CONSOLE),
+    handler: async () => blocked(MSG_ORG_CONSOLE),
   },
   {
     name: 'organization_overview',
     description:
-      'Blocked: organization overview must be viewed in the Transcodes console.',
+      'Blocked: organization settings, user invitations, and invitation management must be done in the Transcodes console at https://transcodes.io.',
     inputSchema: { type: 'object', properties: {} },
-    handler: async () => blocked(MSG_PLATFORM_CONSOLE),
+    handler: async () => blocked(MSG_ORG_CONSOLE),
   },
   {
     name: 'organization_create',
     description:
-      'Blocked: organization creation must be done in the Transcodes console.',
+      'Blocked: organization settings, user invitations, and invitation management must be done in the Transcodes console at https://transcodes.io.',
     inputSchema: bodyOnlyInputSchema,
-    handler: async () => blocked(MSG_PLATFORM_CONSOLE),
+    handler: async () => blocked(MSG_ORG_CONSOLE),
   },
   {
     name: 'organization_patch',
     description:
-      'Blocked: organization updates must be done in the Transcodes console.',
+      'Blocked: organization settings, user invitations, and invitation management must be done in the Transcodes console at https://transcodes.io.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -85,48 +88,48 @@ export const platformTools: ProxyTool[] = [
       },
       required: ['organization_id', 'body'],
     },
-    handler: async () => blocked(MSG_PLATFORM_CONSOLE),
+    handler: async () => blocked(MSG_ORG_CONSOLE),
   },
   {
     name: 'organization_delete',
     description:
-      'Blocked: organization deletion must be done in the Transcodes console.',
+      'Blocked: organization settings, user invitations, and invitation management must be done in the Transcodes console at https://transcodes.io.',
     inputSchema: {
       type: 'object',
       properties: { organization_id: { type: 'string' } },
       required: ['organization_id'],
     },
-    handler: async () => blocked(MSG_PLATFORM_CONSOLE),
+    handler: async () => blocked(MSG_ORG_CONSOLE),
   },
   {
     name: 'organization_invitation_accept',
     description:
-      'Blocked: invitations must be handled in the Transcodes console.',
+      'Blocked: organization settings, user invitations, and invitation management must be done in the Transcodes console at https://transcodes.io.',
     inputSchema: bodyOnlyInputSchema,
-    handler: async () => blocked(MSG_PLATFORM_CONSOLE),
+    handler: async () => blocked(MSG_ORG_CONSOLE),
   },
   {
     name: 'organization_invitation_decline',
     description:
-      'Blocked: invitations must be handled in the Transcodes console.',
+      'Blocked: organization settings, user invitations, and invitation management must be done in the Transcodes console at https://transcodes.io.',
     inputSchema: bodyOnlyInputSchema,
-    handler: async () => blocked(MSG_PLATFORM_CONSOLE),
+    handler: async () => blocked(MSG_ORG_CONSOLE),
   },
   {
     name: 'organization_get_collaborators',
     description:
-      'Blocked: collaborator lists must be viewed in the Transcodes console.',
+      'Blocked: organization settings, user invitations, and invitation management must be done in the Transcodes console at https://transcodes.io.',
     inputSchema: {
       type: 'object',
       properties: { organization_id: { type: 'string' } },
       required: ['organization_id'],
     },
-    handler: async () => blocked(MSG_PLATFORM_CONSOLE),
+    handler: async () => blocked(MSG_ORG_CONSOLE),
   },
   {
     name: 'organization_invite_collaborator',
     description:
-      'Blocked: inviting collaborators must be done in the Transcodes console.',
+      'Blocked: organization settings, user invitations, and invitation management must be done in the Transcodes console at https://transcodes.io.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -135,12 +138,12 @@ export const platformTools: ProxyTool[] = [
       },
       required: ['organization_id', 'body'],
     },
-    handler: async () => blocked(MSG_PLATFORM_CONSOLE),
+    handler: async () => blocked(MSG_ORG_CONSOLE),
   },
   {
     name: 'organization_resend_invitation',
     description:
-      'Blocked: invitation resend must be done in the Transcodes console.',
+      'Blocked: organization settings, user invitations, and invitation management must be done in the Transcodes console at https://transcodes.io.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -149,12 +152,12 @@ export const platformTools: ProxyTool[] = [
       },
       required: ['organization_id', 'body'],
     },
-    handler: async () => blocked(MSG_PLATFORM_CONSOLE),
+    handler: async () => blocked(MSG_ORG_CONSOLE),
   },
   {
     name: 'organization_leave_collaborator',
     description:
-      'Blocked: leaving collaborators must be done in the Transcodes console.',
+      'Blocked: organization settings, user invitations, and invitation management must be done in the Transcodes console at https://transcodes.io.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -163,7 +166,7 @@ export const platformTools: ProxyTool[] = [
       },
       required: ['organization_id', 'body'],
     },
-    handler: async () => blocked(MSG_PLATFORM_CONSOLE),
+    handler: async () => blocked(MSG_ORG_CONSOLE),
   },
   {
     name: 'api_keys_list',

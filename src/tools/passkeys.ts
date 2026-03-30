@@ -1,16 +1,11 @@
 import type { ProxyTool } from './tool-utils.ts';
 import {
-  blocked,
-  bodyOnlyInputSchema,
+  blockedWithConsole,
+  getConsoleUrl,
   parse,
   projectProps,
   req,
 } from './tool-utils.ts';
-
-const MSG_PASSKEY_REGISTER_SITE =
-  'Passkey registration must be completed by the user in the browser on your site. This MCP tool does not call the API.';
-const MSG_PASSKEY_DELETE_CONSOLE =
-  'Passkey removal must be done in the Transcodes console. This MCP tool does not call the API.';
 
 /** Passkeys */
 export const passkeysTools: ProxyTool[] = [
@@ -32,36 +27,49 @@ export const passkeysTools: ProxyTool[] = [
             member_id: parse.str(a, 'member_id'),
           },
         },
-        'list_passkeys',
+        'list_passkeys'
       ),
-  },
-  {
-    name: 'passkeys_registration_options',
-    description:
-      'Passkey registration options/challenge. Different service from generic authenticators.',
-    inputSchema: bodyOnlyInputSchema,
-    handler: async (a, config) =>
-      req(config, { method: 'POST', body: a.body }, 'passkeys_registration_options'),
   },
   {
     name: 'passkeys_register',
     description:
-      'Blocked: passkey registration must be completed by the user on your website (browser WebAuthn).',
-    inputSchema: bodyOnlyInputSchema,
-    handler: async () => blocked(MSG_PASSKEY_REGISTER_SITE),
+      'Blocked: passkey registration must be completed by the user on your website (browser WebAuthn). ' +
+      'Returns the project domain URL (?tc_mode=console) for the user to visit, log in, and register a passkey.',
+    inputSchema: {
+      type: 'object',
+      properties: { ...projectProps },
+    },
+    handler: async (a, config) => {
+      const url = await getConsoleUrl(config, parse.projectId(a, config));
+      return blockedWithConsole(url);
+    },
   },
   {
     name: 'passkeys_update',
-    description: 'Update passkey metadata such as label.',
-    inputSchema: bodyOnlyInputSchema,
-    handler: async (a, config) =>
-      req(config, { method: 'PUT', body: a.body }, 'passkeys_update'),
+    description:
+      'Blocked: passkey metadata update must be performed by the user on your website. ' +
+      'Returns the project domain URL (?tc_mode=console) for the user to visit, log in, and update passkey metadata.',
+    inputSchema: {
+      type: 'object',
+      properties: { ...projectProps },
+    },
+    handler: async (a, config) => {
+      const url = await getConsoleUrl(config, parse.projectId(a, config));
+      return blockedWithConsole(url);
+    },
   },
   {
     name: 'passkeys_delete',
     description:
-      'Blocked: passkey deletion must be done in the Transcodes console only.',
-    inputSchema: bodyOnlyInputSchema,
-    handler: async () => blocked(MSG_PASSKEY_DELETE_CONSOLE),
+      'Blocked: passkey deletion must be performed by the user on your website. ' +
+      'Returns the project domain URL (?tc_mode=console) for the user to visit, log in, and delete a passkey.',
+    inputSchema: {
+      type: 'object',
+      properties: { ...projectProps },
+    },
+    handler: async (a, config) => {
+      const url = await getConsoleUrl(config, parse.projectId(a, config));
+      return blockedWithConsole(url);
+    },
   },
 ];

@@ -1,14 +1,11 @@
 import type { ProxyTool } from './tool-utils.ts';
 import {
-  blocked,
-  bodyOnlyInputSchema,
+  blockedWithConsole,
+  getConsoleUrl,
   parse,
   projectProps,
   req,
 } from './tool-utils.ts';
-
-const MSG_TOTP_CONSOLE =
-  'TOTP enrollment and removal must be done in the Transcodes console. This MCP tool does not call the API.';
 
 /** TOTP MFA */
 export const totpTools: ProxyTool[] = [
@@ -29,28 +26,49 @@ export const totpTools: ProxyTool[] = [
             member_id: parse.str(a, 'member_id'),
           },
         },
-        'list_totps',
+        'list_totps'
       ),
   },
   {
     name: 'totp_create',
     description:
-      'Blocked: TOTP secret creation must be done in the Transcodes console only.',
-    inputSchema: bodyOnlyInputSchema,
-    handler: async () => blocked(MSG_TOTP_CONSOLE),
+      'Blocked: TOTP secret creation must be performed by the user on your website. ' +
+      'Returns the project domain URL (?tc_mode=console) for the user to visit, log in, and enroll a TOTP device.',
+    inputSchema: {
+      type: 'object',
+      properties: { ...projectProps },
+    },
+    handler: async (a, config) => {
+      const url = await getConsoleUrl(config, parse.projectId(a, config));
+      return blockedWithConsole(url);
+    },
   },
   {
     name: 'totp_update',
-    description: 'Update TOTP metadata such as label or status.',
-    inputSchema: bodyOnlyInputSchema,
-    handler: async (a, config) =>
-      req(config, { method: 'PUT', body: a.body }, 'totp_update'),
+    description:
+      'Blocked: TOTP metadata update must be performed by the user on your website. ' +
+      'Returns the project domain URL (?tc_mode=console) for the user to visit, log in, and update TOTP device metadata.',
+    inputSchema: {
+      type: 'object',
+      properties: { ...projectProps },
+    },
+    handler: async (a, config) => {
+      const url = await getConsoleUrl(config, parse.projectId(a, config));
+      return blockedWithConsole(url);
+    },
   },
   {
     name: 'totp_delete',
     description:
-      'Blocked: TOTP removal must be done in the Transcodes console only.',
-    inputSchema: bodyOnlyInputSchema,
-    handler: async () => blocked(MSG_TOTP_CONSOLE),
+      'Blocked: TOTP removal must be performed by the user on your website. ' +
+      'Returns the project domain URL (?tc_mode=console) for the user to visit, log in, and remove a TOTP device.',
+    inputSchema: {
+      type: 'object',
+      properties: { ...projectProps },
+    },
+    handler: async (a, config) => {
+      const url = await getConsoleUrl(config, parse.projectId(a, config));
+      return blockedWithConsole(url);
+    },
   },
 ];

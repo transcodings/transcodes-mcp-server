@@ -1,16 +1,11 @@
 import type { ProxyTool } from './tool-utils.ts';
 import {
-  blocked,
-  bodyOnlyInputSchema,
+  blockedWithConsole,
+  getConsoleUrl,
   parse,
   projectProps,
   req,
 } from './tool-utils.ts';
-
-const MSG_AUTH_REGISTER_SITE =
-  'Authenticator registration must be completed by the user in the browser on your site. This MCP tool does not call the API.';
-const MSG_AUTH_DELETE_CONSOLE =
-  'Authenticator removal must be done in the Transcodes console. This MCP tool does not call the API.';
 
 /** WebAuthn authenticators (non-passkey flow) */
 export const authenticatorsTools: ProxyTool[] = [
@@ -37,7 +32,7 @@ export const authenticatorsTools: ProxyTool[] = [
             id: parse.str(a, 'id'),
           },
         },
-        'get_authenticator',
+        'get_authenticator'
       ),
   },
   {
@@ -58,32 +53,49 @@ export const authenticatorsTools: ProxyTool[] = [
             member_id: parse.str(a, 'member_id'),
           },
         },
-        'list_authenticators',
+        'list_authenticators'
       ),
   },
   {
     name: 'authenticators_register',
     description:
-      'Blocked: WebAuthn registration must be completed by the user on your website (browser).',
-    inputSchema: bodyOnlyInputSchema,
-    handler: async () => blocked(MSG_AUTH_REGISTER_SITE),
+      'Blocked: WebAuthn registration must be completed by the user on your website (browser). ' +
+      'Returns the project domain URL (?tc_mode=console) for the user to visit, log in, and register an authenticator.',
+    inputSchema: {
+      type: 'object',
+      properties: { ...projectProps },
+    },
+    handler: async (a, config) => {
+      const url = await getConsoleUrl(config, parse.projectId(a, config));
+      return blockedWithConsole(url);
+    },
   },
   {
     name: 'authenticators_update',
-    description: 'Update credential metadata such as label.',
-    inputSchema: bodyOnlyInputSchema,
-    handler: async (a, config) =>
-      req(
-        config,
-        { method: 'PUT', body: a.body },
-        'authenticators_update',
-      ),
+    description:
+      'Blocked: authenticator metadata update must be performed by the user on your website. ' +
+      'Returns the project domain URL (?tc_mode=console) for the user to visit, log in, and update credential metadata.',
+    inputSchema: {
+      type: 'object',
+      properties: { ...projectProps },
+    },
+    handler: async (a, config) => {
+      const url = await getConsoleUrl(config, parse.projectId(a, config));
+      return blockedWithConsole(url);
+    },
   },
   {
     name: 'authenticators_delete',
     description:
-      'Blocked: authenticator deletion must be done in the Transcodes console only.',
-    inputSchema: bodyOnlyInputSchema,
-    handler: async () => blocked(MSG_AUTH_DELETE_CONSOLE),
+      'Blocked: authenticator deletion must be performed by the user on your website. ' +
+      'Returns the project domain URL (?tc_mode=console) for the user to visit, log in, and delete an authenticator.',
+    inputSchema: {
+      type: 'object',
+      properties: { ...projectProps },
+    },
+    handler: async (a, config) => {
+      const url = await getConsoleUrl(config, parse.projectId(a, config));
+      return blockedWithConsole(url);
+    },
   },
 ];

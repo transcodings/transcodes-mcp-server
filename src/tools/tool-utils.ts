@@ -1,12 +1,11 @@
 /**
- * MCP 도구 공통: 인자 파싱, 백엔드 프록시(req), 스키마 조각.
- * 개별 함수를 여러 개 두지 않고 `parse` 한 객체로 묶음.
+ * Shared MCP tool utilities: argument parsing, backend proxy (req), and schema fragments.
  */
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import type { ProxyConfig } from '../config.ts';
 import { request, type RequestInput } from '../client.ts';
 
-/** MCP Tool 정의 + handler */
+/** MCP tool definition with handler */
 export interface ProxyTool extends Tool {
   handler: (
     args: Record<string, unknown>,
@@ -18,15 +17,15 @@ function isPlainRecord(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === 'object' && !Array.isArray(v);
 }
 
-/** callTool 인자에서 project_id·선택 필드만 꺼냄 */
+/** Extracts project_id and optional fields from callTool arguments. */
 export const parse = {
-  /** MCP가 넘긴 arguments를 객체로 (배열·null 방지) */
+  /** Normalises MCP arguments to a plain record (guards against arrays and null). */
   record(v: unknown): Record<string, unknown> {
     if (isPlainRecord(v)) return v;
     return {};
   },
 
-  /** 인자의 project_id 또는 TRANSCODES_PROJECT_ID */
+  /** Returns project_id from arguments, falling back to TRANSCODES_PROJECT_ID env. */
   projectId(a: Record<string, unknown>, config: ProxyConfig): string {
     const p = a.project_id ?? config.defaultProjectId;
     if (typeof p !== 'string' || !p.trim()) {
@@ -37,7 +36,7 @@ export const parse = {
     return p.trim();
   },
 
-  /** 쿼리용 선택 숫자 (page, limit 등) */
+  /** Optional numeric query param (e.g. page, limit). */
   num(a: Record<string, unknown>, key: string): number | undefined {
     const v = a[key];
     if (v === undefined || v === null) return undefined;
@@ -45,14 +44,14 @@ export const parse = {
     return Number.isFinite(n) ? n : undefined;
   },
 
-  /** 쿼리용 선택 문자열 */
+  /** Optional string query param. */
   str(a: Record<string, unknown>, key: string): string | undefined {
     const v = a[key];
     return typeof v === 'string' ? v : undefined;
   },
 };
 
-/** 콘솔/사이트에서만 해야 하는 작업 — JSON 문자열로 거절 응답 */
+/** Returns a rejected response for actions that must be performed on the site or console. */
 export function blocked(message: string): Promise<string> {
   return Promise.resolve(
     JSON.stringify({ ok: false, blocked: true, message }, null, 2),
@@ -63,7 +62,7 @@ function blockedJson(message: string): string {
   return JSON.stringify({ ok: false, blocked: true, message }, null, 2);
 }
 
-/** 플랜 한도 초과 errorCode 목록 */
+/** Error codes that indicate a plan limit has been reached. */
 const PLAN_LIMIT_ERROR_CODES = new Set([
   'ROLE_LIMIT_REACHED',
   'RESOURCE_LIMIT_REACHED',
@@ -75,8 +74,8 @@ const UPGRADE_HINT =
   'Would you like to upgrade your plan? Use the membership_create_checkout_session tool to instantly generate a Stripe Checkout link for the Standard plan.';
 
 /**
- * TRANSCODES_BACKEND_ENDPOINTS 맵의 base 경로 + pathSuffix로 최종 URL 구성 후 요청.
- * 403 + 플랜 한도 에러 응답이면 upgradeHint 필드를 추가해 반환.
+ * Resolves the final URL from TRANSCODES_BACKEND_ENDPOINTS + optional pathSuffix and makes the request.
+ * Appends an upgradeHint field when the response is a 403 plan-limit error.
  */
 export async function req(
   config: ProxyConfig,
@@ -121,13 +120,57 @@ export async function req(
       }
     }
   } catch {
-    // JSON 파싱 실패 시 원본 그대로 반환
+    // Returns the raw response if JSON parsing fails.
   }
 
   return raw;
 }
 
-/** JSON Schema: project_id (도구 스키마에 공통 삽입) */
+/**
+ * Fetches the project's domain_url and appends ?tc_mode=console.
+ * Returns null if the request fails or domain_url is missing.
+ */
+export async function getConsoleUrl(
+  config: ProxyConfig,
+  projectId: string,
+): Promise<string | null> {
+  try {
+    const raw = await req(config, { method: 'GET' }, 'get_project', `/${projectId}`);
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const data = (parsed as Record<string, unknown>).data;
+      if (data !== null && typeof data === 'object' && !Array.isArray(data)) {
+        const payload = (data as Record<string, unknown>).payload;
+        if (Array.isArray(payload) && payload.length > 0) {
+          const project = payload[0] as Record<string, unknown>;
+          const domainUrl = project.domain_url;
+          if (typeof domainUrl === 'string' && domainUrl.trim()) {
+            return `${domainUrl.replace(/\/$/, '')}?tc_mode=console`;
+          }
+        }
+      }
+    }
+  } catch {
+    // Returns null on request or parse failure.
+  }
+  return null;
+}
+
+/** Returns a blocked response string that includes the console_url when available. */
+export function blockedWithConsole(url: string | null): string {
+  const message =
+    'This action must be performed by the user on your site. ' +
+    'Visit the console URL below, log in, and manage your authentication credentials from there.';
+  return JSON.stringify(
+    url
+      ? { ok: false, blocked: true, message, console_url: url }
+      : { ok: false, blocked: true, message },
+    null,
+    2,
+  );
+}
+
+/** JSON Schema fragment: project_id (shared across tool input schemas). */
 export const projectProps = {
   project_id: {
     type: 'string',
@@ -136,7 +179,7 @@ export const projectProps = {
   },
 };
 
-/** JSON Schema: Nest DTO body만 받는 POST/PUT 등 */
+/** JSON Schema for tools that only accept a Nest DTO body (POST/PUT, etc.). */
 export const bodyOnlyInputSchema: Tool['inputSchema'] = {
   type: 'object',
   properties: {

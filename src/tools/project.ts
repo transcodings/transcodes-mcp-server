@@ -1,5 +1,5 @@
 import type { ProxyTool } from './tool-utils.ts';
-import { blocked, bodyOnlyInputSchema } from './tool-utils.ts';
+import { blocked, bodyOnlyInputSchema, req } from './tool-utils.ts';
 
 const MSG_PROJECT_PWA_AUTH_CONSOLE =
   'PWA and authentication configuration (manifest, service worker, widget, branding, WebAuthn, related origins, token expiry, etc.) must be performed in the Transcodes console. ' +
@@ -8,10 +8,33 @@ const MSG_PROJECT_PWA_AUTH_CONSOLE =
   'This MCP tool does not call the API.';
 
 /**
- * `/v1/project/...` 중 PWA·인증 직접 설정은 콘솔 전용 — API 프록시 없이 안내만 반환.
- * 나머지 프로젝트 조회·생성 등은 `transcodes_http_request` 또는 추후 전용 도구.
+ * `/v1/project/...`
+ * - get_project: GET /project/:project_id — 단건 조회
+ * - get_projects: GET /project/organization/:organization_id — 조직의 프로젝트 목록
+ * - PWA·인증 설정 변경은 콘솔 전용 (project_pwa_auth_console)
  */
 export const projectTools: ProxyTool[] = [
+  {
+    name: 'get_project',
+    description:
+      'Fetch a single project by its ID. ' +
+      'Returns all information about the project — including toolkit, pwa, domain_url, title, description, and created/updated timestamps. ' +
+      'Use this to retrieve the complete project details in one call. ' +
+      'Requires project_id.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project_id: {
+          type: 'string',
+          description: 'Root project public ID to look up.',
+        },
+      },
+      required: ['project_id'],
+    },
+    handler: async (a, config) =>
+      req(config, { method: 'GET' }, 'get_project', `/${String(a.project_id)}`),
+  },
+
   {
     name: 'project_pwa_auth_console',
     description:

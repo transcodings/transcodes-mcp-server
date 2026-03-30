@@ -17,7 +17,7 @@ import { membersTools } from './members.ts';
 import { otpTools } from './otp.ts';
 import { passcodeTools } from './passcode.ts';
 import { passkeysTools } from './passkeys.ts';
-import { platformTools } from './platform.ts';
+import { organizationTools } from './organization.ts';
 import { projectTools } from './project.ts';
 import { rbacTools } from './rbac.ts';
 import { totpTools } from './totp.ts';
@@ -35,7 +35,7 @@ const ALL_TOOLS: ProxyTool[] = [
   ...totpTools,
   ...otpTools,
   ...passcodeTools,
-  ...platformTools,
+  ...organizationTools,
   ...httpTools,
 ];
 

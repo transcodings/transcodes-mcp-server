@@ -55,11 +55,12 @@ async function startNgrokTunnel(port: number): Promise<TunnelResult> {
 }
 
 async function startZrokTunnel(port: number): Promise<TunnelResult> {
-  // optionalDependency — bypass TypeScript module resolution when package is absent
+  // optionalDependency — use a variable to prevent TypeScript from resolving at compile time
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let zrok: any;
   try {
-    zrok = await new Function('m', 'return import(m)')('@openziti/zrok');
+    const pkg = '@openziti/zrok';
+    zrok = await import(/* @vite-ignore */ pkg);
   } catch {
     throw new Error(
       'ZROK_TOKEN is set but @openziti/zrok could not be loaded.\n' +

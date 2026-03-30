@@ -1,6 +1,6 @@
 {
   "name": "@bigstrider/transcodes-mcp-server",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "stdio MCP server that proxies HTTP requests to Transcodes API with X-API-Key",
   "type": "module",
   "main": "./dist/index.js",

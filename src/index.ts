@@ -1,10 +1,7 @@
-#!/usr/bin/env node
-import 'dotenv/config';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { loadConfig } from './config.ts';
 import { createMcpServer, log } from './server.ts';
 import { startTunnel } from './tunnel.ts';
-import { startSseServer } from './sse.ts';
 
 const DEFAULT_PORT = 3000;
 
@@ -17,6 +14,8 @@ async function main(): Promise<void> {
 
   if (tunnel) {
     // Streamable HTTP (Bolt.new, Lovable 등 웹 IDE) — 엔드포인트 `/mcp`
+    // @hono/node-server 의존성이 있어 tunnel 모드에서만 동적 import
+    const { startSseServer } = await import('./sse.ts');
     const server = await startSseServer(port, config);
     log(`HTTP listening on http://localhost:${port}`);
     log(`${tunnel.provider} tunnel → ${tunnel.publicUrl}`);

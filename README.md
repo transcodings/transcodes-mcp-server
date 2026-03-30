@@ -4,6 +4,12 @@ An MCP server that lets AI assistants — Cursor, Claude Desktop, or any web IDE
 
 ---
 
+## Node.js version
+
+This package requires **Node.js 20+** (same as `@modelcontextprotocol/sdk`). MCP clients often invoke the first `node` on your `PATH`. If you use nvm and an old default (e.g. 16) is first, you will see cryptic `@hono/node-server` / `Request` errors — fix by pointing `command` at a Node 20+ binary or adjusting your default Node.
+
+---
+
 ## Setup
 
 **Cursor** → `~/.cursor/mcp.json`  

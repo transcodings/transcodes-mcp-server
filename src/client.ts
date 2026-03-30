@@ -57,12 +57,17 @@ export async function request(
       2,
     );
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    // Intentionally omit the raw error message to avoid leaking internal host/URL info.
+    const isTimeout =
+      axios.isAxiosError(error) && error.code === 'ECONNABORTED';
+    const networkMessage = isTimeout
+      ? 'Request timed out'
+      : 'Could not reach the backend. Check TRANSCODES_BACKEND_URL and network connectivity.';
     return JSON.stringify(
       {
         ok: false,
         status: 0,
-        data: { error: 'Network Request Failed', message: errorMessage },
+        data: { error: 'Network Request Failed', message: networkMessage },
       },
       null,
       2,

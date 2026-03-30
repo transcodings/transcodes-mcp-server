@@ -11,6 +11,10 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    env:
+      TRANSCODES_BACKEND_URL: ${{ secrets.TRANSCODES_BACKEND_URL }}
+      TRANSCODES_BACKEND_ENDPOINTS: ${{ secrets.TRANSCODES_BACKEND_ENDPOINTS }}
+
     steps:
       - name: checkout repository code
         uses: actions/checkout@v4

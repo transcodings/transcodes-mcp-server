@@ -1,5 +1,15 @@
 # @bigstrider/transcodes-mcp-server
 
+## 1.1.0
+
+### Minor Changes
+
+- 82a6f11: enabled member revokation
+
+### Patch Changes
+
+- 2679941: fixed env variable issues
+
 ## 1.0.1
 
 ### Patch Changes

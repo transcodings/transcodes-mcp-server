@@ -10,6 +10,14 @@ import {
 const MSG_DELETE_MEMBER_CONSOLE =
   'Member deletion must be done in the Transcodes console. This MCP tool does not call the API.';
 
+/**
+ * AuthController 멤버 정지(revocation) — 반드시 **member** 단수 경로.
+ * 잘못된 예: /auth/members/revocation, /members/revocation, /member/suspend, PUT/PATCH.
+ */
+const MEMBER_REVOCATION_API_NOTE =
+  'Exact path after /v1: /auth/member/revocation (singular member, NOT members). ' +
+  'GET=query only; POST=suspend body; DELETE=unsuspend body. No PUT, PATCH, or /member/suspend.';
+
 /** Members — maps to AuthController member routes */
 export const membersTools: ProxyTool[] = [
   {
@@ -114,5 +122,63 @@ export const membersTools: ProxyTool[] = [
       'Blocked: member deletion must be done in the Transcodes console only.',
     inputSchema: bodyOnlyInputSchema,
     handler: async () => blocked(MSG_DELETE_MEMBER_CONSOLE),
+  },
+  {
+    name: 'get_member_revocation',
+    description:
+      'Check when a specific member\'s account or session was suspended (locked/blocked). ' +
+      'Returns { revoked_at: ISO date string } if the member is currently suspended, or { revoked_at: null } if active. ' +
+      'Use this to find out whether a member is suspended and exactly when the suspension was applied. ' +
+      MEMBER_REVOCATION_API_NOTE,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ...projectProps,
+        member_id: { type: 'string' },
+      },
+      required: ['member_id'],
+    },
+    handler: async (a, config) =>
+      req(
+        config,
+        {
+          method: 'GET',
+          query: {
+            project_id: parse.projectId(a, config),
+            member_id: String(a.member_id),
+          },
+        },
+        'get_member_revocation',
+      ),
+  },
+  {
+    name: 'create_member_revocation',
+    description:
+      'Suspend a specific member\'s account: blocks their login and invalidates all active sessions immediately. ' +
+      'Once suspended, the member cannot sign in or use any session tokens until the suspension is lifted. ' +
+      'Body: project_id, member_id (DeleteMemberDto). POST only. ' +
+      MEMBER_REVOCATION_API_NOTE,
+    inputSchema: bodyOnlyInputSchema,
+    handler: async (a, config) =>
+      req(
+        config,
+        { method: 'POST', body: a.body },
+        'create_member_revocation',
+      ),
+  },
+  {
+    name: 'delete_member_revocation',
+    description:
+      'Lift (unsuspend) a specific member\'s account: removes the suspension lock and restores their ability to log in and create sessions. ' +
+      'Use this to re-enable a member that was previously suspended via create_member_revocation. ' +
+      'Body: project_id, member_id (DeleteMemberDto). DELETE only. ' +
+      MEMBER_REVOCATION_API_NOTE,
+    inputSchema: bodyOnlyInputSchema,
+    handler: async (a, config) =>
+      req(
+        config,
+        { method: 'DELETE', body: a.body },
+        'delete_member_revocation',
+      ),
   },
 ];

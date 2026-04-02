@@ -26,7 +26,10 @@ export const httpTools: ProxyTool[] = [
       required: ['method', 'path'],
     },
     handler: async (a, config) => {
-      if (!config.endpointMap || !config.endpointMap.has('transcodes_http_request')) {
+      if (
+        !config.endpointMap ||
+        !config.endpointMap.has('transcodes_http_request')
+      ) {
         return JSON.stringify(
           {
             ok: false,
@@ -35,7 +38,7 @@ export const httpTools: ProxyTool[] = [
               "Tool 'transcodes_http_request' is not enabled. Add it to TRANSCODES_BACKEND_ENDPOINTS.",
           },
           null,
-          2,
+          2
         );
       }
 
@@ -56,7 +59,11 @@ export const httpTools: ProxyTool[] = [
 
       const queryObj = a.query;
       const query: Record<string, string | number | undefined> = {};
-      if (queryObj && typeof queryObj === 'object' && !Array.isArray(queryObj)) {
+      if (
+        queryObj &&
+        typeof queryObj === 'object' &&
+        !Array.isArray(queryObj)
+      ) {
         for (const [k, v] of Object.entries(queryObj)) {
           if (v === undefined || v === null) continue;
           query[k] = typeof v === 'object' ? JSON.stringify(v) : String(v);

@@ -17,6 +17,14 @@ function isPlainRecord(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === 'object' && !Array.isArray(v);
 }
 
+/**
+ * MCP 도구 설명·스키마에 공통으로 넣는 문구.
+ * 권장: 클라이언트 `env`에 TRANSCODES_PROJECT_ID 설정. 없으면 사용자에게 물어보기.
+ */
+export const PROJECT_ID_GUIDANCE =
+  'Recommended: set TRANSCODES_PROJECT_ID in the MCP client env block (e.g. Cursor ~/.cursor/mcp.json or Claude Desktop mcpServers.*.env). ' +
+  'If it is not set, ask the user for the Transcodes project public id before calling.';
+
 /** Extracts project_id and optional fields from callTool arguments. */
 export const parse = {
   /** Normalises MCP arguments to a plain record (guards against arrays and null). */
@@ -30,7 +38,9 @@ export const parse = {
     const p = a.project_id ?? config.defaultProjectId;
     if (typeof p !== 'string' || !p.trim()) {
       throw new Error(
-        'project_id is required in arguments or set TRANSCODES_PROJECT_ID',
+        'project_id is missing. ' +
+          PROJECT_ID_GUIDANCE +
+          ' You can pass project_id in tool arguments once the user provides it.',
       );
     }
     return p.trim();
@@ -175,7 +185,9 @@ export const projectProps = {
   project_id: {
     type: 'string',
     description:
-      'Transcodes project public id. Falls back to TRANSCODES_PROJECT_ID env when omitted',
+      'Transcodes project public id. ' +
+      PROJECT_ID_GUIDANCE +
+      ' When TRANSCODES_PROJECT_ID is set in MCP env, this argument may be omitted.',
   },
 };
 
@@ -186,7 +198,9 @@ export const bodyOnlyInputSchema: Tool['inputSchema'] = {
     body: {
       type: 'object',
       description:
-        'Request body matching Nest Swagger ApiBody (Create*/Update* DTO field names)',
+        'Request body matching Nest Swagger ApiBody (Create*/Update* DTO field names). ' +
+        PROJECT_ID_GUIDANCE +
+        ' Include project_id in the body when TRANSCODES_PROJECT_ID is not set in MCP env.',
       additionalProperties: true,
     },
   },

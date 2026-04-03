@@ -1,7 +1,14 @@
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { config as loadEnv } from 'dotenv';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { loadConfig } from './config.ts';
 import { createMcpServer, log } from './server.ts';
 import { startTunnel } from './tunnel.ts';
+
+// cwd와 무관하게 프로젝트 루트(.env)를 참조 — 빌드 산출물(dist/)에서 한 단계 위
+const __dirname = dirname(fileURLToPath(import.meta.url));
+loadEnv({ path: resolve(__dirname, '..', '.env') });
 
 const DEFAULT_PORT = 3000;
 

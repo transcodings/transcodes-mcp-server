@@ -14,7 +14,7 @@ export function log(...args: unknown[]): void {
   process.stderr.write(`[transcodes-mcp-server] ${args.join(' ')}\n`);
 }
 
-/** Creates an MCP server and registers tool handlers. In SSE mode, create one instance per connection. */
+/** Creates an MCP server and registers tool handlers. */
 export function createMcpServer(config: ProxyConfig): McpServer {
   const mcp = new McpServer(
     { name: 'transcodes-mcp-server', version: VERSION },

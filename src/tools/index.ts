@@ -21,6 +21,7 @@ import { organizationTools } from './organization.ts';
 import { projectTools } from './project.ts';
 import { rbacTools } from './rbac.ts';
 import { totpTools } from './totp.ts';
+import { proxyTools } from './proxy.ts';
 
 const ALL_TOOLS: ProxyTool[] = [
   ...instructionsTools,
@@ -37,18 +38,17 @@ const ALL_TOOLS: ProxyTool[] = [
   ...passcodeTools,
   ...organizationTools,
   ...httpTools,
+  ...proxyTools,
 ];
 
 /** 이름 → ProxyTool (시작 시 한 번만 구축) */
 const TOOL_MAP = new Map<string, ProxyTool>(ALL_TOOLS.map((t) => [t.name, t]));
 
-/**
- * 클라이언트에 보여 줄 도구 목록. endpointMap 없으면 빈 배열.
- */
+const ALWAYS_VISIBLE = new Set(proxyTools.map((t) => t.name));
+
 export function getMcpTools(config: ProxyConfig): Tool[] {
-  if (!config.endpointMap) return [];
   return ALL_TOOLS
-    .filter((t) => config.endpointMap!.has(t.name))
+    .filter((t) => ALWAYS_VISIBLE.has(t.name) || config.endpointMap?.has(t.name))
     .map(({ handler: _handler, ...toolDef }) => toolDef);
 }
 
@@ -57,7 +57,7 @@ export async function dispatchTool(
   args: unknown,
   config: ProxyConfig,
 ): Promise<string> {
-  if (config.endpointMap && !config.endpointMap.has(name)) {
+  if (!ALWAYS_VISIBLE.has(name) && config.endpointMap && !config.endpointMap.has(name)) {
     throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
   }
   const tool = TOOL_MAP.get(name);

@@ -4,64 +4,29 @@ import { config as loadEnv } from 'dotenv';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { loadConfig } from './config.ts';
 import { createMcpServer, log } from './server.ts';
-import { startTunnel } from './tunnel.ts';
 
-// cwd와 무관하게 프로젝트 루트(.env)를 참조 — 빌드 산출물(dist/)에서 한 단계 위
 const __dirname = dirname(fileURLToPath(import.meta.url));
 loadEnv({ path: resolve(__dirname, '..', '.env') });
 
-const DEFAULT_PORT = 3000;
+if (Number.parseInt(process.versions.node.split('.')[0], 10) < 20) {
+  console.error(`[transcodes-mcp-server] Requires Node.js 20+. Current: ${process.version}`);
+  process.exit(1);
+}
 
 async function main(): Promise<void> {
   const config = loadConfig();
-  const port = parseInt(process.env.MCP_PORT ?? String(DEFAULT_PORT), 10);
+  const mcp = createMcpServer(config);
+  const transport = new StdioServerTransport();
+  await mcp.connect(transport);
+  log('ready');
 
-  // If NGROK_AUTHTOKEN or ZROK_TOKEN is set: SSE + tunnel; otherwise: stdio
-  const tunnel = await startTunnel(port);
-
-  if (tunnel) {
-    // Streamable HTTP (Bolt.new, Lovable 등 웹 IDE) — 엔드포인트 `/mcp`
-    // @hono/node-server 의존성이 있어 tunnel 모드에서만 동적 import
-    const { startSseServer } = await import('./sse.ts');
-    const server = await startSseServer(port, config);
-    log(`HTTP listening on http://localhost:${port}`);
-    log(`${tunnel.provider} tunnel → ${tunnel.publicUrl}`);
-
-    process.stderr.write(
-      '\n' +
-        '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
-        '🚀 Transcodes MCP is ready!\n' +
-        '   Paste this URL into your web IDE MCP settings:\n' +
-        '\n' +
-        `   ${tunnel.publicUrl}/mcp\n` +
-        '\n' +
-        '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
-        '\n'
-    );
-
-    const shutdown = async () => {
-      log('shutting down…');
-      await tunnel.close();
-      server.close();
-      process.exit(0);
-    };
-    process.on('SIGINT', shutdown);
-    process.on('SIGTERM', shutdown);
-  } else {
-    // stdio mode (Cursor, Claude Desktop)
-    const mcp = createMcpServer(config);
-    const transport = new StdioServerTransport();
-    await mcp.connect(transport);
-    log('ready');
-
-    const shutdown = async () => {
-      log('shutting down…');
-      await mcp.close();
-      process.exit(0);
-    };
-    process.on('SIGINT', shutdown);
-    process.on('SIGTERM', shutdown);
-  }
+  const shutdown = async () => {
+    log('shutting down…');
+    await mcp.close();
+    process.exit(0);
+  };
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
 }
 
 main().catch((err) => {

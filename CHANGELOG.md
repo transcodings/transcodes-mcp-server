@@ -1,5 +1,12 @@
 # @bigstrider/transcodes-mcp-server
 
+## 1.2.0
+
+### Minor Changes
+
+- 643e73a: fixed env variables import
+- 40982dd: removed proxy server
+
 ## 1.1.0
 
 ### Minor Changes

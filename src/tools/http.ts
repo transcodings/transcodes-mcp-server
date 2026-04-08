@@ -1,3 +1,4 @@
+import { posix } from 'node:path';
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import { request, type RequestInput } from '../client.ts';
 import type { ProxyTool } from './tool-utils.ts';
@@ -56,6 +57,10 @@ export const httpTools: ProxyTool[] = [
       }
       let path = String(a.path ?? '');
       if (!path.startsWith('/')) path = `/${path}`;
+      path = posix.normalize(path);
+      if (path.startsWith('/..') || path === '..') {
+        throw new McpError(ErrorCode.InvalidParams, 'Path traversal is not allowed');
+      }
 
       const queryObj = a.query;
       const query: Record<string, string | number | undefined> = {};

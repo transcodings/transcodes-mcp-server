@@ -11,8 +11,11 @@ import { createMcpServer, log } from './server.ts';
 let httpServer: http.Server | null = null;
 let activePort = 0;
 
-function setCors(res: http.ServerResponse): void {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+/** 요청 본문 최대 크기 (1 MB) */
+const MAX_BODY_BYTES = 1_048_576;
+
+function setCors(res: http.ServerResponse, origin: string): void {
+  res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader(
     'Access-Control-Allow-Headers',
@@ -23,7 +26,15 @@ function setCors(res: http.ServerResponse): void {
 
 async function readBody(req: http.IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
-  for await (const chunk of req) chunks.push(Buffer.from(chunk));
+  let totalBytes = 0;
+  for await (const chunk of req) {
+    const buf = Buffer.from(chunk);
+    totalBytes += buf.length;
+    if (totalBytes > MAX_BODY_BYTES) {
+      throw new Error('Request body too large');
+    }
+    chunks.push(buf);
+  }
   if (chunks.length === 0) return undefined;
   const text = Buffer.concat(chunks).toString('utf8');
   return text.trim() ? JSON.parse(text) : undefined;
@@ -39,9 +50,29 @@ export async function startHttpServer(port: number, config: ProxyConfig): Promis
 
   const transports = new Map<string, InstanceType<typeof StreamableHTTPServerTransport>>();
 
+  /**
+   * CORS origin: TRANSCODES_CORS_ORIGIN 환경변수 우선, 없으면 localhost 기본값.
+   * port=0(OS 자동 할당)이면 요청의 Origin 헤더가 localhost일 때만 반영.
+   */
+  const envOrigin = process.env.TRANSCODES_CORS_ORIGIN?.trim();
+  const fixedOrigin = port !== 0 ? `http://localhost:${port}` : null;
+
+  function resolveOrigin(req: http.IncomingMessage): string {
+    if (envOrigin) return envOrigin;
+    if (fixedOrigin) return fixedOrigin;
+    const reqOrigin = req.headers.origin ?? '';
+    try {
+      const parsed = new URL(reqOrigin);
+      if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') {
+        return reqOrigin;
+      }
+    } catch { /* invalid origin → 기본값 사용 */ }
+    return 'http://localhost';
+  }
+
   httpServer = http.createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', `http://localhost:${port}`);
-    setCors(res);
+    setCors(res, resolveOrigin(req));
 
     if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
@@ -101,10 +132,17 @@ export async function startHttpServer(port: number, config: ProxyConfig): Promis
     } catch (err) {
       log(`HTTP error: ${err instanceof Error ? err.message : String(err)}`);
       if (!res.headersSent) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
+        const isTooLarge =
+          err instanceof Error && err.message === 'Request body too large';
+        res.writeHead(isTooLarge ? 413 : 500, {
+          'Content-Type': 'application/json',
+        });
         res.end(JSON.stringify({
           jsonrpc: '2.0',
-          error: { code: -32603, message: 'Internal server error' },
+          error: {
+            code: isTooLarge ? -32000 : -32603,
+            message: isTooLarge ? 'Request body too large' : 'Internal server error',
+          },
           id: null,
         }));
       }

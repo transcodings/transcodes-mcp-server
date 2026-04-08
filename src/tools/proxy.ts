@@ -49,4 +49,51 @@ export const proxyTools: ProxyTool[] = [
       return JSON.stringify({ ok: true, ...getHttpServerStatus() }, null, 2);
     },
   },
+  {
+    name: 'get_current_project_id',
+    description:
+      'Returns the currently active project ID (from env or previously set via set_current_project_id). ' +
+      'Call this tool first when you need the project ID instead of asking the user.',
+    inputSchema: { type: 'object', properties: {} },
+    handler: async (_args, config) => {
+      const projectId = config.defaultProjectId;
+      if (!projectId) {
+        return JSON.stringify({
+          ok: false,
+          message:
+            'No project ID is configured. Ask the user for the project ID, then call set_current_project_id to store it for this session.',
+        }, null, 2);
+      }
+      return JSON.stringify({ ok: true, project_id: projectId }, null, 2);
+    },
+  },
+  {
+    name: 'set_current_project_id',
+    description:
+      'Sets the active project ID for this MCP server session. ' +
+      'Use when the user provides a project ID and TRANSCODES_PROJECT_ID was not pre-configured. ' +
+      'Once set, all subsequent tool calls will use this project ID as the default.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project_id: {
+          type: 'string',
+          description: 'The Transcodes project public ID to use for this session.',
+        },
+      },
+      required: ['project_id'],
+    },
+    handler: async (args, config) => {
+      const id = typeof args.project_id === 'string' ? args.project_id.trim() : '';
+      if (!id) {
+        return JSON.stringify({ ok: false, message: 'project_id is required.' }, null, 2);
+      }
+      config.defaultProjectId = id;
+      return JSON.stringify({
+        ok: true,
+        project_id: id,
+        message: 'Project ID set for this session. All tools will now use this ID by default.',
+      }, null, 2);
+    },
+  },
 ];

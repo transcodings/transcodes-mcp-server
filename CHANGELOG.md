@@ -1,5 +1,11 @@
 # @bigstrider/transcodes-mcp-server
 
+## 1.2.1
+
+### Patch Changes
+
+- 0e82bcc: fixed env variables
+
 ## 1.2.0
 
 ### Minor Changes

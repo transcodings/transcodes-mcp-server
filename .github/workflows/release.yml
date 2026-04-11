@@ -30,11 +30,27 @@ jobs:
       - name: install dependencies
         run: npm ci
 
-      # src 폴더 내 모든 .ts 파일에서 process.env 문자열을 실제 세크릿 값으로 강제 치환
+      # Node.js로 치환하여 JSON 따옴표가 보존되도록 함 (sed는 셸 이스케이핑으로 따옴표가 벗겨짐)
       - name: Inject Secrets into All Source Files
+        env:
+          _URL: ${{ secrets.TRANSCODES_BACKEND_URL }}
+          _ENDPOINTS: ${{ secrets.TRANSCODES_BACKEND_ENDPOINTS }}
         run: |
-          find src -name "*.ts" -type f -exec sed -i "s|process.env.TRANSCODES_BACKEND_URL|'${{ secrets.TRANSCODES_BACKEND_URL }}'|g" {} +
-          find src -name "*.ts" -type f -exec sed -i "s|process.env.TRANSCODES_BACKEND_ENDPOINTS|'${{ secrets.TRANSCODES_BACKEND_ENDPOINTS }}'|g" {} +
+          node --input-type=commonjs -e "
+            const fs = require('fs');
+            const path = require('path');
+            function walk(dir) {
+              return fs.readdirSync(dir, { withFileTypes: true, recursive: true })
+                .filter(f => f.isFile() && f.name.endsWith('.ts'))
+                .map(f => path.join(f.parentPath || f.path, f.name));
+            }
+            for (const file of walk('src')) {
+              let c = fs.readFileSync(file, 'utf8');
+              c = c.replace(/process\.env\.TRANSCODES_BACKEND_URL/g, JSON.stringify(process.env._URL));
+              c = c.replace(/process\.env\.TRANSCODES_BACKEND_ENDPOINTS/g, JSON.stringify(process.env._ENDPOINTS));
+              fs.writeFileSync(file, c);
+            }
+          "
 
       - name: Create release pull request
         id: changeset_action

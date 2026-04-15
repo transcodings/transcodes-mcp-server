@@ -59,7 +59,10 @@ export const httpTools: ProxyTool[] = [
       if (!path.startsWith('/')) path = `/${path}`;
       path = posix.normalize(path);
       if (path.startsWith('/..') || path === '..') {
-        throw new McpError(ErrorCode.InvalidParams, 'Path traversal is not allowed');
+        throw new McpError(
+          ErrorCode.InvalidParams,
+          'Path traversal is not allowed'
+        );
       }
 
       const queryObj = a.query;

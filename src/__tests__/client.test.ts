@@ -105,6 +105,45 @@ describe('request', () => {
     );
   });
 
+  it('sends X-API-Key and JSON body for DELETE (same as POST)', async () => {
+    axiosFn.mockResolvedValue({ status: 200, data: {} });
+
+    await request(config, {
+      method: 'DELETE',
+      path: '/auth/member',
+      body: { project_id: 'p1', member_id: 'm1' },
+    });
+
+    expect(axiosFn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'DELETE',
+        data: { project_id: 'p1', member_id: 'm1' },
+        headers: expect.objectContaining({
+          'X-API-Key': 'test-key',
+          'Content-Type': 'application/json',
+        }),
+      }),
+    );
+  });
+
+  it('sends X-API-Key when omitBody is true (query-only DELETE)', async () => {
+    axiosFn.mockResolvedValue({ status: 200, data: {} });
+
+    await request(config, {
+      method: 'DELETE',
+      path: '/auth/resources/k',
+      query: { project_id: 'p1' },
+      omitBody: true,
+    });
+
+    expect(axiosFn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'X-API-Key': 'test-key' }),
+        data: undefined,
+      }),
+    );
+  });
+
   it('returns ok: false for 4xx/5xx without throwing', async () => {
     axiosFn.mockResolvedValue({ status: 403, data: { error: 'Forbidden' } });
 

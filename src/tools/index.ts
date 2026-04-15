@@ -22,6 +22,7 @@ import { projectTools } from './project.ts';
 import { rbacTools } from './rbac.ts';
 import { totpTools } from './totp.ts';
 import { proxyTools } from './proxy.ts';
+import { stepupTools } from './stepup.ts';
 
 const ALL_TOOLS: ProxyTool[] = [
   ...instructionsTools,
@@ -38,6 +39,7 @@ const ALL_TOOLS: ProxyTool[] = [
   ...passcodeTools,
   ...organizationTools,
   ...httpTools,
+  ...stepupTools,
   ...proxyTools,
 ];
 

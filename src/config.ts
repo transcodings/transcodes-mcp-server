@@ -5,11 +5,24 @@
  *
  * 모든 값은 반드시 환경변수로 주입해야 합니다.
  */
+/** step-up 인증 완료 상태 (세션 메모리에만 유지) */
+export type VerifiedStepup = {
+  sid: string;
+  verifiedAt: number;
+};
+
+/** step-up 유효 기간 (밀리초) — 백엔드 TTL과 동일 */
+export const STEPUP_TTL_MS = 10 * 60 * 1_000;
+
 export type ProxyConfig = {
   backendUrl: string;
   apiBaseV1: string;
   apiKey: string;
   defaultProjectId?: string;
+  /** TRANSCODES_MEMBER_EMAIL → step-up 인증 시 기본 멤버 식별 */
+  memberEmail?: string;
+  /** poll_stepup_session verified 시 저장 */
+  verifiedStepup?: VerifiedStepup;
   /** TRANSCODES_BACKEND_ENDPOINTS JSON → 도구 이름 → `/v1` 이후 경로 */
   endpointMap?: Map<string, string>;
 };
@@ -68,5 +81,8 @@ export function loadConfig(): ProxyConfig {
     }
   }
 
-  return { backendUrl, apiBaseV1, apiKey, defaultProjectId, endpointMap };
+  const memberEmail =
+    process.env.TRANSCODES_MEMBER_EMAIL?.trim() || undefined;
+
+  return { backendUrl, apiBaseV1, apiKey, defaultProjectId, memberEmail, endpointMap };
 }

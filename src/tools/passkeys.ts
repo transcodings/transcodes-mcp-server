@@ -1,7 +1,6 @@
 import type { ProxyTool } from './tool-utils.ts';
 import {
-  blockedWithConsole,
-  getConsoleUrl,
+  blockedWithConsoleFromProject,
   parse,
   projectProps,
   req,
@@ -39,10 +38,8 @@ export const passkeysTools: ProxyTool[] = [
       type: 'object',
       properties: { ...projectProps },
     },
-    handler: async (a, config) => {
-      const url = await getConsoleUrl(config, parse.projectId(a, config));
-      return blockedWithConsole(url);
-    },
+    handler: async (a, config) =>
+      blockedWithConsoleFromProject(config, parse.projectId(a, config)),
   },
   {
     name: 'passkeys_update',
@@ -53,23 +50,19 @@ export const passkeysTools: ProxyTool[] = [
       type: 'object',
       properties: { ...projectProps },
     },
-    handler: async (a, config) => {
-      const url = await getConsoleUrl(config, parse.projectId(a, config));
-      return blockedWithConsole(url);
-    },
+    handler: async (a, config) =>
+      blockedWithConsoleFromProject(config, parse.projectId(a, config)),
   },
   {
-    name: 'passkeys_delete',
+    name: 'passkeys_revoke',
     description:
-      'Blocked: passkey deletion must be performed by the user on your website. ' +
-      'Returns the project domain URL (?tc_mode=console) for the user to visit, log in, and delete a passkey.',
+      'Blocked: passkey revocation must be performed by the user on your website. ' +
+      'Returns the project domain URL (?tc_mode=console) for the user to visit, log in, and revoke a passkey.',
     inputSchema: {
       type: 'object',
       properties: { ...projectProps },
     },
-    handler: async (a, config) => {
-      const url = await getConsoleUrl(config, parse.projectId(a, config));
-      return blockedWithConsole(url);
-    },
+    handler: async (a, config) =>
+      blockedWithConsoleFromProject(config, parse.projectId(a, config)),
   },
 ];

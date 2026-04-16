@@ -143,7 +143,8 @@ export async function req(
   }
   const base = map.get(toolName)!;
   const path = pathSuffix ? `${base}${pathSuffix}` : base;
-  const raw = await request(config, { ...input, path });
+  const stepUpSid = config.verifiedStepup?.sid;
+  const raw = await request(config, { ...input, path, ...(stepUpSid ? { stepUpSid } : {}) });
 
   try {
     const parsed: unknown = JSON.parse(raw);

@@ -16,6 +16,11 @@ export type RequestInput = {
   query?: Record<string, string | number | boolean | undefined | null>;
   body?: unknown;
   /**
+   * When set, sent as `X-Step-Up-Session-Id` header so the backend can
+   * verify the step-up MFA session before executing the sensitive operation.
+   */
+  stepUpSid?: string;
+  /**
    * true면 본문을 보내지 않음 (DELETE …/resources/:key + query만 등).
    * false/미설정이면 본문이 없을 때는 {} + application/json (Nest @Body() 검증용).
    */
@@ -61,9 +66,8 @@ export async function request(
       headers: {
         'X-API-Key': config.apiKey,
         Accept: 'application/json',
-        ...(data !== undefined
-          ? { 'Content-Type': 'application/json' }
-          : {}),
+        ...(input.stepUpSid ? { 'X-Step-Up-Session-Id': input.stepUpSid } : {}),
+        ...(data !== undefined ? { 'Content-Type': 'application/json' } : {}),
       },
       validateStatus: () => true,
       timeout: REQUEST_TIMEOUT_MS,

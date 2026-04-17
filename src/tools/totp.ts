@@ -1,7 +1,6 @@
 import type { ProxyTool } from './tool-utils.ts';
 import {
-  blockedWithConsole,
-  getConsoleUrl,
+  blockedWithConsoleFromProject,
   parse,
   projectProps,
   req,
@@ -38,10 +37,8 @@ export const totpTools: ProxyTool[] = [
       type: 'object',
       properties: { ...projectProps },
     },
-    handler: async (a, config) => {
-      const url = await getConsoleUrl(config, parse.projectId(a, config));
-      return blockedWithConsole(url);
-    },
+    handler: async (a, config) =>
+      blockedWithConsoleFromProject(config, parse.projectId(a, config)),
   },
   {
     name: 'totp_update',
@@ -52,23 +49,19 @@ export const totpTools: ProxyTool[] = [
       type: 'object',
       properties: { ...projectProps },
     },
-    handler: async (a, config) => {
-      const url = await getConsoleUrl(config, parse.projectId(a, config));
-      return blockedWithConsole(url);
-    },
+    handler: async (a, config) =>
+      blockedWithConsoleFromProject(config, parse.projectId(a, config)),
   },
   {
-    name: 'totp_delete',
+    name: 'totp_revoke',
     description:
-      'Blocked: TOTP removal must be performed by the user on your website. ' +
-      'Returns the project domain URL (?tc_mode=console) for the user to visit, log in, and remove a TOTP device.',
+      'Blocked: TOTP revocation must be performed by the user on your website. ' +
+      'Returns the project domain URL (?tc_mode=console) for the user to visit, log in, and revoke a TOTP device.',
     inputSchema: {
       type: 'object',
       properties: { ...projectProps },
     },
-    handler: async (a, config) => {
-      const url = await getConsoleUrl(config, parse.projectId(a, config));
-      return blockedWithConsole(url);
-    },
+    handler: async (a, config) =>
+      blockedWithConsoleFromProject(config, parse.projectId(a, config)),
   },
 ];

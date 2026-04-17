@@ -1,5 +1,5 @@
 import type { ProxyTool } from './tool-utils.ts';
-import { blocked, bodyOnlyInputSchema, req } from './tool-utils.ts';
+import { blocked, req } from './tool-utils.ts';
 
 const MSG_PROJECT_PWA_AUTH_CONSOLE =
   'PWA and authentication configuration (manifest, service worker, widget, branding, WebAuthn, related origins, token expiry, etc.) must be performed in the Transcodes console. ' +
@@ -41,7 +41,7 @@ export const projectTools: ProxyTool[] = [
       'Blocked: PWA and authentication configuration (manifest, service worker, branding, WebAuthn, related origins, token expiry, etc.) must be done in the Transcodes console. ' +
       'These settings trigger an SDK rebuild and redeployment — a pipeline the console manages automatically. ' +
       'Applying changes directly via API skips that pipeline and leaves the live SDK out of sync with the new configuration.',
-    inputSchema: bodyOnlyInputSchema,
+    inputSchema: { type: 'object', properties: {} },
     handler: async () => blocked(MSG_PROJECT_PWA_AUTH_CONSOLE),
   },
 ];

@@ -2,7 +2,7 @@
  * Shared MCP tool utilities: argument parsing, backend proxy (req), and schema fragments.
  */
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
-import type { ProxyConfig } from '../config.ts';
+import { STEPUP_TTL_MS, type ProxyConfig } from '../config.ts';
 import { request, type RequestInput } from '../client.ts';
 
 /** MCP tool definition with handler */
@@ -18,8 +18,8 @@ function isPlainRecord(v: unknown): v is Record<string, unknown> {
 }
 
 /**
- * MCP 도구 설명·스키마에 공통으로 넣는 문구.
- * 권장: 클라이언트 `env`에 TRANSCODES_PROJECT_ID 설정. 없으면 사용자에게 물어보기.
+ * Shared copy for MCP tool descriptions and schemas.
+ * Recommended: set TRANSCODES_PROJECT_ID in the client env; otherwise ask the user.
  */
 export const PROJECT_ID_GUIDANCE =
   'Recommended: set TRANSCODES_PROJECT_ID in the MCP client env block (e.g. Cursor ~/.cursor/mcp.json or Claude Desktop mcpServers.*.env). ' +
@@ -61,6 +61,33 @@ export const parse = {
   },
 };
 
+/**
+ * Returns whether step-up MFA is still valid. If not verified, returns a blocked JSON string; if verified, null.
+ * Call before sensitive tool handlers (revoke_member, retire_*, passcode_create, etc.).
+ */
+export function requireStepup(config: ProxyConfig): string | null {
+  const v = config.verifiedStepup;
+  if (!v) {
+    return JSON.stringify({
+      ok: false,
+      blocked: true,
+      message:
+        'Step-up MFA required. Call create_stepup_session first (comment: one short sentence for the step-up UI), ' +
+        'send the user the auth URL, then poll_stepup_session after they confirm',
+    }, null, 2);
+  }
+  if (Date.now() - v.verifiedAt > STEPUP_TTL_MS) {
+    config.verifiedStepup = undefined;
+    return JSON.stringify({
+      ok: false,
+      blocked: true,
+      message:
+        'Step-up session has expired. Call create_stepup_session again',
+    }, null, 2);
+  }
+  return null;
+}
+
 /** Returns a rejected response for actions that must be performed on the site or console. */
 export function blocked(message: string): Promise<string> {
   return Promise.resolve(
@@ -85,6 +112,16 @@ const UPGRADE_HINT =
 
 /**
  * Resolves the final URL from TRANSCODES_BACKEND_ENDPOINTS + optional pathSuffix and makes the request.
+ * Full URL: `${apiBaseV1}${base}${pathSuffix}` (see client.ts — path is after `/v1`).
+ *
+ * Sensitive tools (call requireStepup in code first) and their endpoint map / final paths:
+ * - revoke_member: DELETE map `/auth/member` — no suffix — body `{ project_id, member_id }`
+ * - retire_role: DELETE map `/auth/role` — suffix `/:role_id` — body `{ project_id }`
+ * - retire_resource: DELETE map `/auth/resources` — suffix `/:resource_key` — query `project_id`, omitBody
+ * - passcode_create: POST map `/auth/passcode/create` — body CreatePasscodeDto
+ * - create_stepup_session: POST …/step-up/session — body includes comment (one sentence for the UI)
+ * - poll_stepup_session: GET same map base — suffix `/:sid`
+ *
  * Appends an upgradeHint field when the response is a 403 plan-limit error.
  */
 export async function req(
@@ -106,7 +143,8 @@ export async function req(
   }
   const base = map.get(toolName)!;
   const path = pathSuffix ? `${base}${pathSuffix}` : base;
-  const raw = await request(config, { ...input, path });
+  const stepUpSid = config.verifiedStepup?.sid;
+  const raw = await request(config, { ...input, path, ...(stepUpSid ? { stepUpSid } : {}) });
 
   try {
     const parsed: unknown = JSON.parse(raw);
@@ -134,6 +172,45 @@ export async function req(
   }
 
   return raw;
+}
+
+/**
+ * Looks up a member public id by email via get_member.
+ * Shared by create_stepup_session and similar flows.
+ */
+export async function resolveMemberIdByEmail(
+  config: ProxyConfig,
+  projectId: string,
+  email: string,
+): Promise<{ member_id: string } | { error: string }> {
+  const raw = await req(
+    config,
+    { method: 'GET', query: { project_id: projectId, email } },
+    'get_member',
+  );
+  const parsed: unknown = JSON.parse(raw);
+  if (
+    parsed === null ||
+    typeof parsed !== 'object' ||
+    Array.isArray(parsed)
+  ) {
+    return { error: raw };
+  }
+  const p = parsed as Record<string, unknown>;
+  if (!p.ok) {
+    return { error: `get_member failed: ${raw}` };
+  }
+  const data = p.data as Record<string, unknown> | undefined;
+  const payload = data?.payload;
+  if (!Array.isArray(payload) || payload.length === 0) {
+    return { error: `No member found for email: ${email}` };
+  }
+  const member = payload[0] as Record<string, unknown>;
+  const id = member.id;
+  if (typeof id !== 'string' || !id) {
+    return { error: 'Member record has no id field' };
+  }
+  return { member_id: id };
 }
 
 /**
@@ -180,6 +257,18 @@ export function blockedWithConsole(url: string | null): string {
   );
 }
 
+/**
+ * Browser-only tools (passkeys, authenticators, totp, etc.): resolve `domain_url` via get_project,
+ * then return a blockedWithConsole response with `?tc_mode=console` (get_project → domain_url?tc_mode=console).
+ */
+export async function blockedWithConsoleFromProject(
+  config: ProxyConfig,
+  projectId: string,
+): Promise<string> {
+  const url = await getConsoleUrl(config, projectId);
+  return blockedWithConsole(url);
+}
+
 /** JSON Schema fragment: project_id (shared across tool input schemas). */
 export const projectProps = {
   project_id: {
@@ -191,18 +280,3 @@ export const projectProps = {
   },
 };
 
-/** JSON Schema for tools that only accept a Nest DTO body (POST/PUT, etc.). */
-export const bodyOnlyInputSchema: Tool['inputSchema'] = {
-  type: 'object',
-  properties: {
-    body: {
-      type: 'object',
-      description:
-        'Request body matching Nest Swagger ApiBody (Create*/Update* DTO field names). ' +
-        PROJECT_ID_GUIDANCE +
-        ' Include project_id in the body when TRANSCODES_PROJECT_ID is not set in MCP env.',
-      additionalProperties: true,
-    },
-  },
-  required: ['body'],
-};

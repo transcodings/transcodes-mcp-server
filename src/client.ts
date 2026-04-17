@@ -15,7 +15,29 @@ export type RequestInput = {
   path: string;
   query?: Record<string, string | number | boolean | undefined | null>;
   body?: unknown;
+  /**
+   * When set, sent as `X-Step-Up-Session-Id` header so the backend can
+   * verify the step-up MFA session before executing the sensitive operation.
+   */
+  stepUpSid?: string;
+  /**
+   * true면 본문을 보내지 않음 (DELETE …/resources/:key + query만 등).
+   * false/미설정이면 본문이 없을 때는 {} + application/json (Nest @Body() 검증용).
+   */
+  omitBody?: boolean;
 };
+
+function jsonBodyForMethod(
+  method: Method,
+  body: unknown | undefined,
+  omitBody: boolean | undefined,
+): unknown | undefined {
+  const m = String(method).toUpperCase();
+  if (m === 'GET' || m === 'HEAD') return undefined;
+  if (omitBody) return undefined;
+  if (body === undefined || body === null) return {};
+  return body;
+}
 
 export async function request(
   config: ProxyConfig,
@@ -33,15 +55,19 @@ export async function request(
     }
   }
 
+  const data = jsonBodyForMethod(input.method, input.body, input.omitBody);
+
   try {
     const response = await axios({
       method: input.method,
       url,
       params,
-      data: input.method !== 'GET' ? input.body : undefined,
+      data,
       headers: {
         'X-API-Key': config.apiKey,
         Accept: 'application/json',
+        ...(input.stepUpSid ? { 'X-Step-Up-Session-Id': input.stepUpSid } : {}),
+        ...(data !== undefined ? { 'Content-Type': 'application/json' } : {}),
       },
       validateStatus: () => true,
       timeout: REQUEST_TIMEOUT_MS,

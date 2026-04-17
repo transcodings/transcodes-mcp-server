@@ -1,7 +1,6 @@
 import type { ProxyTool } from './tool-utils.ts';
 import {
-  blockedWithConsole,
-  getConsoleUrl,
+  blockedWithConsoleFromProject,
   parse,
   projectProps,
   req,
@@ -65,10 +64,8 @@ export const authenticatorsTools: ProxyTool[] = [
       type: 'object',
       properties: { ...projectProps },
     },
-    handler: async (a, config) => {
-      const url = await getConsoleUrl(config, parse.projectId(a, config));
-      return blockedWithConsole(url);
-    },
+    handler: async (a, config) =>
+      blockedWithConsoleFromProject(config, parse.projectId(a, config)),
   },
   {
     name: 'authenticators_update',
@@ -79,23 +76,19 @@ export const authenticatorsTools: ProxyTool[] = [
       type: 'object',
       properties: { ...projectProps },
     },
-    handler: async (a, config) => {
-      const url = await getConsoleUrl(config, parse.projectId(a, config));
-      return blockedWithConsole(url);
-    },
+    handler: async (a, config) =>
+      blockedWithConsoleFromProject(config, parse.projectId(a, config)),
   },
   {
-    name: 'authenticators_delete',
+    name: 'authenticators_revoke',
     description:
-      'Blocked: authenticator deletion must be performed by the user on your website. ' +
-      'Returns the project domain URL (?tc_mode=console) for the user to visit, log in, and delete an authenticator.',
+      'Blocked: authenticator revocation must be performed by the user on your website. ' +
+      'Returns the project domain URL (?tc_mode=console) for the user to visit, log in, and revoke an authenticator.',
     inputSchema: {
       type: 'object',
       properties: { ...projectProps },
     },
-    handler: async (a, config) => {
-      const url = await getConsoleUrl(config, parse.projectId(a, config));
-      return blockedWithConsole(url);
-    },
+    handler: async (a, config) =>
+      blockedWithConsoleFromProject(config, parse.projectId(a, config)),
   },
 ];

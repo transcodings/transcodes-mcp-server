@@ -1,7 +1,6 @@
 import type { ProxyTool } from './tool-utils.ts';
 import {
   blocked,
-  bodyOnlyInputSchema,
   parse,
   projectProps,
   req,
@@ -40,13 +39,13 @@ export const organizationTools: ProxyTool[] = [
   {
     name: 'user_create',
     description: 'Blocked: user creation must be done in the Transcodes console.',
-    inputSchema: bodyOnlyInputSchema,
+    inputSchema: { type: 'object', properties: {} },
     handler: async () => blocked(MSG_PLATFORM_CONSOLE),
   },
   {
     name: 'user_patch',
     description: 'Blocked: user updates must be done in the Transcodes console.',
-    inputSchema: bodyOnlyInputSchema,
+    inputSchema: { type: 'object', properties: {} },
     handler: async () => blocked(MSG_PLATFORM_CONSOLE),
   },
   {
@@ -73,7 +72,7 @@ export const organizationTools: ProxyTool[] = [
     name: 'organization_create',
     description:
       'Blocked: organization settings, user invitations, and invitation management must be done in the Transcodes console at https://transcodes.io.',
-    inputSchema: bodyOnlyInputSchema,
+    inputSchema: { type: 'object', properties: {} },
     handler: async () => blocked(MSG_ORG_CONSOLE),
   },
   {
@@ -105,14 +104,14 @@ export const organizationTools: ProxyTool[] = [
     name: 'organization_invitation_accept',
     description:
       'Blocked: organization settings, user invitations, and invitation management must be done in the Transcodes console at https://transcodes.io.',
-    inputSchema: bodyOnlyInputSchema,
+    inputSchema: { type: 'object', properties: {} },
     handler: async () => blocked(MSG_ORG_CONSOLE),
   },
   {
     name: 'organization_invitation_decline',
     description:
       'Blocked: organization settings, user invitations, and invitation management must be done in the Transcodes console at https://transcodes.io.',
-    inputSchema: bodyOnlyInputSchema,
+    inputSchema: { type: 'object', properties: {} },
     handler: async () => blocked(MSG_ORG_CONSOLE),
   },
   {
@@ -253,8 +252,25 @@ export const organizationTools: ProxyTool[] = [
   {
     name: 'membership_create_checkout_session',
     description:
-      'POST /v1/membership/mcp/session — Stripe Checkout URL via API key (MCP checkout).',
-    inputSchema: bodyOnlyInputSchema,
+      'MCP/API-key checkout: POST /v1/membership/mcp/session — creates a Stripe Checkout session via organization API key and returns a one-time redirect URL. ' +
+      'Use for plan upgrade or first purchase (e.g. free → standard). ' +
+      'Body: price_id from membership_plans; optional mode: "subscription" (default) | "payment" | "setup". ' +
+      'The returned URL expires after a short window — redirect the user immediately after receiving it.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        body: {
+          type: 'object',
+          description: 'CreateCheckoutSessionDto (MCP session): price_id (string, required) — Stripe price ID from membership_plans; mode (string, optional) — "subscription" | "payment" | "setup".',
+          properties: {
+            price_id: { type: 'string', description: 'Stripe price ID (from membership_plans)' },
+            mode: { type: 'string', enum: ['subscription', 'payment', 'setup'], description: 'Checkout mode (default: subscription)' },
+          },
+          required: ['price_id'],
+        },
+      },
+      required: ['body'],
+    },
     handler: async (a, config) =>
       req(config, { method: 'POST', body: a.body }, 'membership_create_checkout_session'),
   },

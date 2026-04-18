@@ -19,7 +19,10 @@ function configWith(map: Record<string, string>): ProxyConfig {
   return {
     backendUrl: 'https://api.test.com',
     apiBaseV1: 'https://api.test.com/v1',
-    apiKey: 'key',
+    token: 'jwt',
+    organizationId: 'org',
+    projectId: 'proj',
+    memberId: 'mem',
     endpointMap: new Map(Object.entries(map)),
   };
 }
@@ -38,45 +41,6 @@ describe('parse.record', () => {
       expect(parse.record(v)).toEqual({});
     }
   );
-});
-
-// ─── parse.projectId ───
-
-describe('parse.projectId', () => {
-  const baseConfig: ProxyConfig = {
-    backendUrl: 'https://api.test.com',
-    apiBaseV1: 'https://api.test.com/v1',
-    apiKey: 'key',
-  };
-
-  it('extracts project_id from args', () => {
-    expect(parse.projectId({ project_id: 'proj-1' }, baseConfig)).toBe(
-      'proj-1'
-    );
-  });
-
-  it('falls back to config.projectId', () => {
-    const config = { ...baseConfig, projectId: 'default-proj' };
-    expect(parse.projectId({}, config)).toBe('default-proj');
-  });
-
-  it('throws when both args and config lack project_id', () => {
-    expect(() => parse.projectId({}, baseConfig)).toThrow(
-      'project_id is missing'
-    );
-  });
-
-  it('trims whitespace from project_id', () => {
-    expect(parse.projectId({ project_id: '  proj-1  ' }, baseConfig)).toBe(
-      'proj-1'
-    );
-  });
-
-  it('throws on whitespace-only project_id', () => {
-    expect(() => parse.projectId({ project_id: '  ' }, baseConfig)).toThrow(
-      'project_id is missing'
-    );
-  });
 });
 
 // ─── parse.num ───
@@ -158,19 +122,6 @@ describe('blockedWithConsole', () => {
 describe('req', () => {
   beforeEach(() => {
     mockedRequest.mockReset();
-  });
-
-  it('returns blocked JSON when endpointMap is undefined', async () => {
-    const config: ProxyConfig = {
-      backendUrl: 'https://api.test.com',
-      apiBaseV1: 'https://api.test.com/v1',
-      apiKey: 'key',
-    };
-    const result = JSON.parse(
-      await req(config, { method: 'GET' }, 'get_project')
-    );
-    expect(result.blocked).toBe(true);
-    expect(result.message).toContain('TRANSCODES_BACKEND_ENDPOINTS');
   });
 
   it('returns blocked JSON when tool is not in endpointMap', async () => {

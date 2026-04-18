@@ -1,7 +1,7 @@
 import type { ProxyTool } from './tool-utils.ts';
-import { parse, projectProps, req } from './tool-utils.ts';
+import { parse, req } from './tool-utils.ts';
 
-/** 감사 로그 (AuditController) */
+/** Audit logs (AuditController). */
 export const auditTools: ProxyTool[] = [
   {
     name: 'get_security_logs',
@@ -10,7 +10,6 @@ export const auditTools: ProxyTool[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        ...projectProps,
         page: { type: 'number' },
         limit: { type: 'number' },
         tag: { type: 'string' },
@@ -25,7 +24,7 @@ export const auditTools: ProxyTool[] = [
         {
           method: 'GET',
           query: {
-            project_id: parse.projectId(a, config),
+            project_id: config.projectId,
             page: parse.num(a, 'page'),
             limit: parse.num(a, 'limit'),
             tag: parse.str(a, 'tag'),
@@ -33,7 +32,7 @@ export const auditTools: ProxyTool[] = [
             end_date: parse.str(a, 'end_date'),
           },
         },
-        'get_security_logs',
+        'get_security_logs'
       ),
   },
 ];

@@ -18,32 +18,18 @@ function isPlainRecord(v: unknown): v is Record<string, unknown> {
 }
 
 /**
- * Shared copy for MCP tool descriptions and schemas.
- * Recommended: set TRANSCODES_PROJECT_ID in the client env; otherwise ask the user.
+ * Shared copy for request-body descriptions (Nest DTOs still expect `project_id` in JSON).
+ * Query parameters use `config.projectId` only — MCP tool args do not accept `project_id`.
  */
 export const PROJECT_ID_GUIDANCE =
-  'Recommended: set TRANSCODES_PROJECT_ID in the MCP client env block (e.g. Cursor ~/.cursor/mcp.json or Claude Desktop mcpServers.*.env). ' +
-  'If it is not set, ask the user for the Transcodes project public id before calling.';
+  'project_id in the body must be the TRANSCODES_TOKEN project id (pid claim); it is not configurable per tool call.';
 
-/** Extracts project_id and optional fields from callTool arguments. */
+/** Extracts optional fields from callTool arguments. */
 export const parse = {
   /** Normalises MCP arguments to a plain record (guards against arrays and null). */
   record(v: unknown): Record<string, unknown> {
     if (isPlainRecord(v)) return v;
     return {};
-  },
-
-  /** Returns project_id from arguments, falling back to TRANSCODES_PROJECT_ID env. */
-  projectId(a: Record<string, unknown>, config: ProxyConfig): string {
-    const p = a.project_id ?? config.projectId;
-    if (typeof p !== 'string' || !p.trim()) {
-      throw new Error(
-        'project_id is missing. ' +
-          PROJECT_ID_GUIDANCE +
-          ' You can pass project_id in tool arguments once the user provides it.'
-      );
-    }
-    return p.trim();
   },
 
   /** Optional numeric query param (e.g. page, limit). */
@@ -139,17 +125,12 @@ export async function req(
   pathSuffix?: string
 ): Promise<string> {
   const map = config.endpointMap;
-  if (!map) {
-    return blockedJson(
-      'TRANSCODES_BACKEND_ENDPOINTS is required. Set it to enable API tools'
-    );
-  }
-  if (!map.has(toolName)) {
+  const base = map.get(toolName);
+  if (!base) {
     return blockedJson(
       `Tool '${toolName}' is not enabled. Add it to TRANSCODES_BACKEND_ENDPOINTS.`
     );
   }
-  const base = map.get(toolName)!;
   const path = pathSuffix ? `${base}${pathSuffix}` : base;
   const stepUpSid = config.verifiedStepup?.sid;
   const raw = await request(config, {
@@ -187,41 +168,6 @@ export async function req(
   }
 
   return raw;
-}
-
-/**
- * Looks up a member public id by email via get_member.
- * Shared by create_stepup_session and similar flows.
- */
-export async function resolveMemberIdByEmail(
-  config: ProxyConfig,
-  projectId: string,
-  email: string
-): Promise<{ member_id: string } | { error: string }> {
-  const raw = await req(
-    config,
-    { method: 'GET', query: { project_id: projectId, email } },
-    'get_member'
-  );
-  const parsed: unknown = JSON.parse(raw);
-  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    return { error: raw };
-  }
-  const p = parsed as Record<string, unknown>;
-  if (!p.ok) {
-    return { error: `get_member failed: ${raw}` };
-  }
-  const data = p.data as Record<string, unknown> | undefined;
-  const payload = data?.payload;
-  if (!Array.isArray(payload) || payload.length === 0) {
-    return { error: `No member found for email: ${email}` };
-  }
-  const member = payload[0] as Record<string, unknown>;
-  const id = member.id;
-  if (typeof id !== 'string' || !id) {
-    return { error: 'Member record has no id field' };
-  }
-  return { member_id: id };
 }
 
 /**
@@ -289,13 +235,3 @@ export async function blockedWithConsoleFromProject(
   return blockedWithConsole(url);
 }
 
-/** JSON Schema fragment: project_id (shared across tool input schemas). */
-export const projectProps = {
-  project_id: {
-    type: 'string',
-    description:
-      'Transcodes project public id. ' +
-      PROJECT_ID_GUIDANCE +
-      ' When TRANSCODES_PROJECT_ID is set in MCP env, this argument may be omitted.',
-  },
-};

@@ -14,7 +14,10 @@ vi.mock('axios', () => ({ default: axiosFn }));
 const config: ProxyConfig = {
   backendUrl: 'https://api.test.com',
   apiBaseV1: 'https://api.test.com/v1',
-  apiKey: 'test-key',
+  token: 'test-jwt',
+  organizationId: 'org',
+  projectId: 'proj',
+  memberId: 'mem',
 };
 
 beforeEach(() => {
@@ -35,14 +38,14 @@ describe('request', () => {
     expect(result.data).toEqual({ id: 1 });
   });
 
-  it('sends X-API-Key header from config', async () => {
+  it('sends X-API-Key header carrying the JWT', async () => {
     axiosFn.mockResolvedValue({ status: 200, data: {} });
 
     await request(config, { method: 'GET', path: '/roles' });
 
     expect(axiosFn).toHaveBeenCalledWith(
       expect.objectContaining({
-        headers: expect.objectContaining({ 'X-API-Key': 'test-key' }),
+        headers: expect.objectContaining({ 'X-API-Key': 'test-jwt' }),
       }),
     );
   });
@@ -119,7 +122,7 @@ describe('request', () => {
         method: 'DELETE',
         data: { project_id: 'p1', member_id: 'm1' },
         headers: expect.objectContaining({
-          'X-API-Key': 'test-key',
+          'X-API-Key': 'test-jwt',
           'Content-Type': 'application/json',
         }),
       }),
@@ -138,7 +141,7 @@ describe('request', () => {
 
     expect(axiosFn).toHaveBeenCalledWith(
       expect.objectContaining({
-        headers: expect.objectContaining({ 'X-API-Key': 'test-key' }),
+        headers: expect.objectContaining({ 'X-API-Key': 'test-jwt' }),
         data: undefined,
       }),
     );

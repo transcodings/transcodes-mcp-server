@@ -1,10 +1,5 @@
 import type { ProxyTool } from './tool-utils.ts';
-import {
-  blocked,
-  parse,
-  projectProps,
-  req,
-} from './tool-utils.ts';
+import { blocked, req } from './tool-utils.ts';
 
 const MSG_PLATFORM_CONSOLE =
   'User, organization, and API key management must be done in the Transcodes console. This MCP tool does not call the API.';
@@ -13,7 +8,9 @@ const MSG_ORG_CONSOLE =
   'Organization settings, user invitations, and invitation management (send, update, cancel, accept, decline) must be done directly in the Transcodes console at https://transcodes.io. This MCP tool does not call the API.';
 
 /**
- * Membership 일부 + User/Org/API Key 도구는 콘솔 전용(차단).
+ * Console-only (blocked) tools: user, organization, and org API keys.
+ * Membership / Stripe proxy tools live in `membership.ts` — do not duplicate them here
+ * (same tool name would overwrite the earlier registration in `tools/index.ts`).
  */
 export const organizationTools: ProxyTool[] = [
   {
@@ -25,8 +22,7 @@ export const organizationTools: ProxyTool[] = [
   },
   {
     name: 'user_find',
-    description:
-      'Blocked: user lookup must be done in the Transcodes console.',
+    description: 'Blocked: user lookup must be done in the Transcodes console.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -38,19 +34,22 @@ export const organizationTools: ProxyTool[] = [
   },
   {
     name: 'user_create',
-    description: 'Blocked: user creation must be done in the Transcodes console.',
+    description:
+      'Blocked: user creation must be done in the Transcodes console.',
     inputSchema: { type: 'object', properties: {} },
     handler: async () => blocked(MSG_PLATFORM_CONSOLE),
   },
   {
     name: 'user_patch',
-    description: 'Blocked: user updates must be done in the Transcodes console.',
+    description:
+      'Blocked: user updates must be done in the Transcodes console.',
     inputSchema: { type: 'object', properties: {} },
     handler: async () => blocked(MSG_PLATFORM_CONSOLE),
   },
   {
     name: 'user_delete',
-    description: 'Blocked: user deletion must be done in the Transcodes console.',
+    description:
+      'Blocked: user deletion must be done in the Transcodes console.',
     inputSchema: { type: 'object', properties: {} },
     handler: async () => blocked(MSG_PLATFORM_CONSOLE),
   },
@@ -169,8 +168,7 @@ export const organizationTools: ProxyTool[] = [
   },
   {
     name: 'api_keys_list',
-    description:
-      'Blocked: API keys must be managed in the Transcodes console.',
+    description: 'Blocked: API keys must be managed in the Transcodes console.',
     inputSchema: {
       type: 'object',
       properties: { organization_id: { type: 'string' } },
@@ -180,8 +178,7 @@ export const organizationTools: ProxyTool[] = [
   },
   {
     name: 'api_keys_create',
-    description:
-      'Blocked: API keys must be created in the Transcodes console.',
+    description: 'Blocked: API keys must be created in the Transcodes console.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -194,8 +191,7 @@ export const organizationTools: ProxyTool[] = [
   },
   {
     name: 'api_keys_patch',
-    description:
-      'Blocked: API keys must be updated in the Transcodes console.',
+    description: 'Blocked: API keys must be updated in the Transcodes console.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -209,8 +205,7 @@ export const organizationTools: ProxyTool[] = [
   },
   {
     name: 'api_keys_delete',
-    description:
-      'Blocked: API keys must be deleted in the Transcodes console.',
+    description: 'Blocked: API keys must be deleted in the Transcodes console.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -223,30 +218,30 @@ export const organizationTools: ProxyTool[] = [
   },
   {
     name: 'membership_plans',
-    description: '공개 플랜 목록.',
+    description: 'Public list of available plans.',
     inputSchema: { type: 'object', properties: {} },
     handler: async (_a, config) =>
       req(config, { method: 'GET' }, 'membership_plans'),
   },
   {
     name: 'membership_plans_limits',
-    description: '플랜별 제한.',
+    description: 'Per-plan resource limits.',
     inputSchema: { type: 'object', properties: {} },
     handler: async (_a, config) =>
       req(config, { method: 'GET' }, 'membership_plans_limits'),
   },
   {
     name: 'membership_customer_status_by_project',
-    description: '프로젝트 기준 구독 (SkipAuth).',
+    description: 'Subscription status for a given project (SkipAuth).',
     inputSchema: {
       type: 'object',
-      properties: { ...projectProps },
+      properties: {},
     },
-    handler: async (a, config) =>
+    handler: async (_a, config) =>
       req(
         config,
-        { method: 'GET', query: { project_id: parse.projectId(a, config) } },
-        'membership_customer_status_by_project',
+        { method: 'GET', query: { project_id: config.projectId } },
+        'membership_customer_status_by_project'
       ),
   },
   {
@@ -261,10 +256,18 @@ export const organizationTools: ProxyTool[] = [
       properties: {
         body: {
           type: 'object',
-          description: 'CreateCheckoutSessionDto (MCP session): price_id (string, required) — Stripe price ID from membership_plans; mode (string, optional) — "subscription" | "payment" | "setup".',
+          description:
+            'CreateCheckoutSessionDto (MCP session): price_id (string, required) — Stripe price ID from membership_plans; mode (string, optional) — "subscription" | "payment" | "setup".',
           properties: {
-            price_id: { type: 'string', description: 'Stripe price ID (from membership_plans)' },
-            mode: { type: 'string', enum: ['subscription', 'payment', 'setup'], description: 'Checkout mode (default: subscription)' },
+            price_id: {
+              type: 'string',
+              description: 'Stripe price ID (from membership_plans)',
+            },
+            mode: {
+              type: 'string',
+              enum: ['subscription', 'payment', 'setup'],
+              description: 'Checkout mode (default: subscription)',
+            },
           },
           required: ['price_id'],
         },
@@ -272,6 +275,10 @@ export const organizationTools: ProxyTool[] = [
       required: ['body'],
     },
     handler: async (a, config) =>
-      req(config, { method: 'POST', body: a.body }, 'membership_create_checkout_session'),
+      req(
+        config,
+        { method: 'POST', body: a.body },
+        'membership_create_checkout_session'
+      ),
   },
 ];

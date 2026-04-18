@@ -50,7 +50,7 @@ Do **not** call **transcodes_http_request** with paths like /resources, /members
 - **Session Management:** If a session is expired, simply say "The session expired. Shall I create a new one for you?"
 
 ## Operation Priority
-1. **Context First:** Always ensure project_id is retrieved via get_current_project_id if not present.
+1. **Context First:** Use get_current_project_id, get_current_organization_id, and get_current_member_id when you need ids (from TRANSCODES_TOKEN).
 2. **Security Gate:** Always trigger Step-up for verified actions.
 3. **Finality:** Complete the requested action immediately upon verification.`;
 
@@ -77,7 +77,7 @@ export function createMcpServer(config: ProxyConfig): McpServer {
       throw new McpError(-32602, `Unknown prompt: ${request.params.name}`);
     }
 
-    const projectId = config.projectId ?? '(not set)';
+    const projectId = config.projectId;
 
     return {
       messages: [

@@ -1,13 +1,11 @@
 import type { ProxyTool } from './tool-utils.ts';
 import {
-  parse,
-  projectProps,
   PROJECT_ID_GUIDANCE,
   req,
   requireStepup,
 } from './tool-utils.ts';
 
-// retire_role: DELETE …/role/:role_id + body { project_id }. retire_resource: DELETE …/resources/:key + ?project_id (본문 없음). step-up 후 호출.
+// retire_role: DELETE …/role/:role_id + body { project_id }. retire_resource: DELETE …/resources/:key + ?project_id (no body). Call after step-up.
 
 /** RBAC — maps to RoleController */
 export const rbacTools: ProxyTool[] = [
@@ -15,11 +13,11 @@ export const rbacTools: ProxyTool[] = [
     name: 'get_roles',
     description:
       'List all roles and permission matrix for a project. Use when you need RBAC data for console parity or to know which roles can be assigned.',
-    inputSchema: { type: 'object', properties: { ...projectProps } },
-    handler: async (a, config) =>
+    inputSchema: { type: 'object', properties: {} },
+    handler: async (_a, config) =>
       req(
         config,
-        { method: 'GET', query: { project_id: parse.projectId(a, config) } },
+        { method: 'GET', query: { project_id: config.projectId } },
         'get_roles',
       ),
   },
@@ -209,11 +207,11 @@ export const rbacTools: ProxyTool[] = [
     name: 'get_resources',
     description:
       'List RBAC resource keys for a project. Use before editing roles or building permission UI.',
-    inputSchema: { type: 'object', properties: { ...projectProps } },
-    handler: async (a, config) =>
+    inputSchema: { type: 'object', properties: {} },
+    handler: async (_a, config) =>
       req(
         config,
-        { method: 'GET', query: { project_id: parse.projectId(a, config) } },
+        { method: 'GET', query: { project_id: config.projectId } },
         'get_resources',
       ),
   },
@@ -278,7 +276,6 @@ export const rbacTools: ProxyTool[] = [
       type: 'object',
       properties: {
         resource_key: { type: 'string' },
-        ...projectProps,
       },
       required: ['resource_key'],
     },
@@ -289,7 +286,7 @@ export const rbacTools: ProxyTool[] = [
         config,
         {
           method: 'DELETE',
-          query: { project_id: parse.projectId(a, config) },
+          query: { project_id: config.projectId },
           omitBody: true,
         },
         'retire_resource',

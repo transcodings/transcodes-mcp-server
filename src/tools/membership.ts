@@ -1,16 +1,17 @@
 import type { ProxyTool } from './tool-utils.ts';
-import { blocked, parse, projectProps, req } from './tool-utils.ts';
+import { blocked, parse, req } from './tool-utils.ts';
 
 const MSG_PORTAL_CONSOLE =
-  'Stripe Customer Portal(플랜 취소, 결제 수단 변경, 구독·청구서 등)는 Transcodes 콘솔에서 직접 이용하세요. 이 MCP 도구는 API를 호출하지 않습니다.';
+  'The Stripe Customer Portal (plan cancellation, payment method changes, subscription / invoice management, etc.) must be opened from the Transcodes console. This MCP tool does not call the API.';
 
 /**
  * Membership / Stripe subscription tools (MembershipController → /v1/membership/...)
  *
  * Public (no auth): membership_plans, membership_plans_limits
  * Auth required:    membership_create_checkout_session
- * SkipAuth + project_id: membership_customer_status_by_project
- * Blocked:          membership_create_portal_session → 콘솔 전용 안내만 반환
+ * SkipAuth + project_id      (from TRANSCODES_TOKEN pid): membership_customer_status_by_project
+ * SkipAuth + organization_id (from TRANSCODES_TOKEN oid): membership_customer_status_by_organization
+ * Blocked:          membership_create_portal_session → returns a console-only guidance message
  */
 export const membershipTools: ProxyTool[] = [
   {
@@ -49,33 +50,54 @@ export const membershipTools: ProxyTool[] = [
   {
     name: 'membership_customer_status_by_project',
     description:
-      'Returns the active subscription status of the organization that owns the given project. ' +
-      'Accepts project_id (or TRANSCODES_PROJECT_ID env); SkipAuth. ' +
-      "Primarily used internally by the SDK Toolkit to determine which features to enable at runtime based on the owning organization's plan.",
+      'Returns the active subscription status of the organization that owns the project in TRANSCODES_TOKEN (pid claim). ' +
+      'SkipAuth — GET /v1/membership/customer/status/project?project_id=... ' +
+      'Useful when the SDK Toolkit only carries a project context.',
     inputSchema: {
       type: 'object',
-      properties: {
-        ...projectProps,
-      },
+      properties: {},
       required: [],
     },
-    handler: async (a, config) =>
+    handler: async (_a, config) =>
       req(
         config,
         {
           method: 'GET',
-          query: { project_id: parse.projectId(a, config) },
+          query: { project_id: config.projectId },
         },
         'membership_customer_status_by_project'
       ),
   },
 
   {
+    name: 'membership_customer_status_by_organization',
+    description:
+      'Returns the active subscription status for the organization in TRANSCODES_TOKEN (oid claim). ' +
+      'SkipAuth — GET /v1/membership/customer/status/organization?organization_id=... ' +
+      "Preferred when the caller already knows the organization (avoids the project → organization lookup).",
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+    handler: async (_a, config) =>
+      req(
+        config,
+        {
+          method: 'GET',
+          query: { organization_id: config.organizationId },
+        },
+        'membership_customer_status_by_organization'
+      ),
+  },
+
+  {
     name: 'membership_create_checkout_session',
     description:
-      "MCP/API-key checkout: POST /v1/membership/mcp/session — creates a Stripe Checkout session via organization API key and returns a one-time redirect URL. " +
-      "Use for plan upgrade or first purchase (e.g. free → standard). " +
+      'MCP checkout: POST /v1/membership/mcp/session — creates a Stripe Checkout session for the organization in TRANSCODES_TOKEN (oid claim) and returns a one-time redirect URL. ' +
+      'Use for plan upgrade or first purchase (e.g. free → standard). ' +
       'Body: price_id from membership_plans; optional mode: "subscription" (default) | "payment" | "setup". ' +
+      'organization_id is injected automatically from the token — do not pass it. ' +
       'The returned URL expires after a short window — redirect the user immediately after receiving it.',
     inputSchema: {
       type: 'object',
@@ -83,8 +105,19 @@ export const membershipTools: ProxyTool[] = [
         body: {
           type: 'object',
           description:
-            'CreateCheckoutSessionDto (MCP session): price_id (string, required) — Stripe price ID from membership_plans; mode (string, optional) — "subscription" | "payment" | "setup".',
-          additionalProperties: true,
+            'CreateMcpCheckoutSessionDto: price_id (required) from membership_plans; mode (optional) one of "subscription" (default) | "payment" | "setup". organization_id is set from TRANSCODES_TOKEN by the server.',
+          properties: {
+            price_id: {
+              type: 'string',
+              description: 'Stripe price ID (from membership_plans)',
+            },
+            mode: {
+              type: 'string',
+              enum: ['subscription', 'payment', 'setup'],
+              description: 'Checkout mode (default: subscription)',
+            },
+          },
+          required: ['price_id'],
         },
       },
       required: ['body'],
@@ -94,7 +127,10 @@ export const membershipTools: ProxyTool[] = [
         config,
         {
           method: 'POST',
-          body: a.body,
+          body: {
+            ...parse.record(a.body),
+            organization_id: config.organizationId,
+          },
         },
         'membership_create_checkout_session'
       ),

@@ -2,7 +2,6 @@ import type { ProxyTool } from './tool-utils.ts';
 import {
   blockedWithConsoleFromProject,
   parse,
-  projectProps,
   req,
 } from './tool-utils.ts';
 
@@ -13,7 +12,7 @@ export const totpTools: ProxyTool[] = [
     description: 'List TOTP devices for a member. Use to audit MFA enrollment.',
     inputSchema: {
       type: 'object',
-      properties: { ...projectProps, member_id: { type: 'string' } },
+      properties: { member_id: { type: 'string' } },
     },
     handler: async (a, config) =>
       req(
@@ -21,7 +20,7 @@ export const totpTools: ProxyTool[] = [
         {
           method: 'GET',
           query: {
-            project_id: parse.projectId(a, config),
+            project_id: config.projectId,
             member_id: parse.str(a, 'member_id'),
           },
         },
@@ -35,10 +34,10 @@ export const totpTools: ProxyTool[] = [
       'Returns the project domain URL (?tc_mode=console) for the user to visit, log in, and enroll a TOTP device.',
     inputSchema: {
       type: 'object',
-      properties: { ...projectProps },
+      properties: {},
     },
-    handler: async (a, config) =>
-      blockedWithConsoleFromProject(config, parse.projectId(a, config)),
+    handler: async (_a, config) =>
+      blockedWithConsoleFromProject(config, config.projectId),
   },
   {
     name: 'totp_update',
@@ -47,10 +46,10 @@ export const totpTools: ProxyTool[] = [
       'Returns the project domain URL (?tc_mode=console) for the user to visit, log in, and update TOTP device metadata.',
     inputSchema: {
       type: 'object',
-      properties: { ...projectProps },
+      properties: {},
     },
-    handler: async (a, config) =>
-      blockedWithConsoleFromProject(config, parse.projectId(a, config)),
+    handler: async (_a, config) =>
+      blockedWithConsoleFromProject(config, config.projectId),
   },
   {
     name: 'totp_revoke',
@@ -59,9 +58,9 @@ export const totpTools: ProxyTool[] = [
       'Returns the project domain URL (?tc_mode=console) for the user to visit, log in, and revoke a TOTP device.',
     inputSchema: {
       type: 'object',
-      properties: { ...projectProps },
+      properties: {},
     },
-    handler: async (a, config) =>
-      blockedWithConsoleFromProject(config, parse.projectId(a, config)),
+    handler: async (_a, config) =>
+      blockedWithConsoleFromProject(config, config.projectId),
   },
 ];

@@ -6,7 +6,10 @@ import type { ProxyConfig } from '../config.ts';
 const baseConfig: ProxyConfig = {
   backendUrl: 'https://api.test.com',
   apiBaseV1: 'https://api.test.com/v1',
-  apiKey: 'key',
+  token: 'jwt',
+  organizationId: 'org',
+  projectId: 'proj',
+  memberId: 'mem',
 };
 
 describe('log', () => {

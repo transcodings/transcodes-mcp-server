@@ -1,17 +1,11 @@
 import type { ProxyTool } from './tool-utils.ts';
-import {
-  parse,
-  projectProps,
-  PROJECT_ID_GUIDANCE,
-  req,
-  requireStepup,
-} from './tool-utils.ts';
+import { parse, req, requireStepup } from './tool-utils.ts';
 
-// revoke_member: DELETE /v1/auth/member, body: { project_id, member_id }. step-up 후 호출.
+// revoke_member: DELETE /v1/auth/member, body: { project_id, member_id }. Call after step-up.
 
 /**
- * AuthController 멤버 정지(revocation) — 반드시 **member** 단수 경로.
- * 잘못된 예: /auth/members/revocation, /members/revocation, /member/suspend, PUT/PATCH.
+ * AuthController member revocation — the path MUST use the singular **member** segment.
+ * Wrong examples: /auth/members/revocation, /members/revocation, /member/suspend, PUT/PATCH.
  */
 const MEMBER_REVOCATION_API_NOTE =
   'Exact path after /v1: /auth/member/revocation (singular member, NOT members). ' +
@@ -26,7 +20,6 @@ export const membersTools: ProxyTool[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        ...projectProps,
         member_id: { type: 'string' },
         email: { type: 'string' },
       },
@@ -37,7 +30,7 @@ export const membersTools: ProxyTool[] = [
         {
           method: 'GET',
           query: {
-            project_id: parse.projectId(a, config),
+            project_id: config.projectId,
             member_id: parse.str(a, 'member_id'),
             email: parse.str(a, 'email'),
           },
@@ -52,7 +45,6 @@ export const membersTools: ProxyTool[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        ...projectProps,
         page: { type: 'number' },
         limit: { type: 'number' },
         sort_by: { type: 'string', enum: ['created_at', 'updated_at'] },
@@ -65,7 +57,7 @@ export const membersTools: ProxyTool[] = [
         {
           method: 'GET',
           query: {
-            project_id: parse.projectId(a, config),
+            project_id: config.projectId,
             page: parse.num(a, 'page'),
             limit: parse.num(a, 'limit'),
             sort_by: parse.str(a, 'sort_by'),
@@ -82,7 +74,6 @@ export const membersTools: ProxyTool[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        ...projectProps,
         member_id: { type: 'string' },
       },
       required: ['member_id'],
@@ -93,7 +84,7 @@ export const membersTools: ProxyTool[] = [
         {
           method: 'GET',
           query: {
-            project_id: parse.projectId(a, config),
+            project_id: config.projectId,
             member_id: String(a.member_id),
           },
         },
@@ -104,42 +95,48 @@ export const membersTools: ProxyTool[] = [
     name: 'create_member',
     description:
       'Create a member (CreateMemberDto). member_id/name may be auto-generated. Use for onboarding or manual provisioning. ' +
-      'Auth: X-API-Key from TRANSCODES_API_KEY (not in body).',
+      'Auth: TRANSCODES_TOKEN sent as X-API-Key (not in body).',
     inputSchema: {
       type: 'object',
       properties: {
         body: {
           type: 'object',
-          description: 'Request body matching Nest Swagger ApiBody (CreateMemberDto). ' + PROJECT_ID_GUIDANCE +
-            ' Include project_id in the body when TRANSCODES_PROJECT_ID is not set in MCP env.',
+          description:
+            'CreateMemberDto fields (project_id is set from TRANSCODES_TOKEN by the server, not passed here).',
           properties: {
-            project_id: { type: 'string', description: 'Transcodes project public id' },
             email: { type: 'string', description: 'Member email address' },
             name: { type: 'string', description: 'Display name (optional, max 100 chars)' },
             role: { type: 'string', description: 'Role name to assign (optional, max 50 chars)' },
             metadata: { type: 'object', description: 'Arbitrary key-value metadata (optional)', additionalProperties: true },
           },
-          required: ['project_id', 'email'],
+          required: ['email'],
         },
       },
       required: ['body'],
     },
     handler: async (a, config) =>
-      req(config, { method: 'POST', body: a.body }, 'create_member'),
+      req(
+        config,
+        {
+          method: 'POST',
+          body: { ...parse.record(a.body), project_id: config.projectId },
+        },
+        'create_member',
+      ),
   },
   {
     name: 'update_member',
     description:
       'Replace member fields (UpdateMemberDto). Full-document update. ' +
-      'Auth: X-API-Key from TRANSCODES_API_KEY (not in body).',
+      'Auth: TRANSCODES_TOKEN sent as X-API-Key (not in body).',
     inputSchema: {
       type: 'object',
       properties: {
         body: {
           type: 'object',
-          description: 'Request body matching Nest Swagger ApiBody (UpdateMemberDto). ' + PROJECT_ID_GUIDANCE,
+          description:
+            'UpdateMemberDto (project_id is set from TRANSCODES_TOKEN by the server, not passed here).',
           properties: {
-            project_id: { type: 'string', description: 'Transcodes project public id' },
             member_id: { type: 'string', description: 'Member public id to update' },
             body: {
               type: 'object',
@@ -152,31 +149,37 @@ export const membersTools: ProxyTool[] = [
               },
             },
           },
-          required: ['project_id', 'member_id', 'body'],
+          required: ['member_id', 'body'],
         },
       },
       required: ['body'],
     },
     handler: async (a, config) =>
-      req(config, { method: 'PUT', body: a.body }, 'update_member'),
+      req(
+        config,
+        {
+          method: 'PUT',
+          body: { ...parse.record(a.body), project_id: config.projectId },
+        },
+        'update_member',
+      ),
   },
   {
     name: 'revoke_member',
     description:
       'Revoke a member\'s access and clean up their project enrollment. ' +
       'Use when the user wants to remove, drop, or dismiss a member. ' +
-      'Verified action — requires step-up MFA. Body: { project_id, member_id } — both required.',
+      'Verified action — requires step-up MFA. Body: { member_id } — project_id comes from TRANSCODES_TOKEN.',
     inputSchema: {
       type: 'object',
       properties: {
         body: {
           type: 'object',
-          description: 'Request body. ' + PROJECT_ID_GUIDANCE,
+          description: 'project_id is set from TRANSCODES_TOKEN by the server.',
           properties: {
-            project_id: { type: 'string', description: 'Transcodes project public id' },
             member_id: { type: 'string', description: 'Member public id to revoke' },
           },
-          required: ['project_id', 'member_id'],
+          required: ['member_id'],
         },
       },
       required: ['body'],
@@ -184,7 +187,14 @@ export const membersTools: ProxyTool[] = [
     handler: async (a, config) => {
       const blocked = requireStepup(config);
       if (blocked) return blocked;
-      const result = await req(config, { method: 'DELETE', body: a.body }, 'revoke_member');
+      const result = await req(
+        config,
+        {
+          method: 'DELETE',
+          body: { ...parse.record(a.body), project_id: config.projectId },
+        },
+        'revoke_member',
+      );
       config.verifiedStepup = undefined;
       return result;
     },
@@ -199,7 +209,6 @@ export const membersTools: ProxyTool[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        ...projectProps,
         member_id: { type: 'string' },
       },
       required: ['member_id'],
@@ -210,7 +219,7 @@ export const membersTools: ProxyTool[] = [
         {
           method: 'GET',
           query: {
-            project_id: parse.projectId(a, config),
+            project_id: config.projectId,
             member_id: String(a.member_id),
           },
         },
@@ -223,19 +232,18 @@ export const membersTools: ProxyTool[] = [
       'Suspend a specific member\'s account: blocks their login and invalidates all active sessions immediately. ' +
       'Once suspended, the member cannot sign in or use any session tokens until the suspension is lifted. ' +
       'Verified action — requires step-up MFA. ' +
-      'Body: project_id, member_id. POST only. ' +
+      'Body: { member_id } — project_id comes from TRANSCODES_TOKEN. POST only. ' +
       MEMBER_REVOCATION_API_NOTE,
     inputSchema: {
       type: 'object',
       properties: {
         body: {
           type: 'object',
-          description: 'Request body. ' + PROJECT_ID_GUIDANCE,
+          description: 'project_id is set from TRANSCODES_TOKEN by the server.',
           properties: {
-            project_id: { type: 'string', description: 'Transcodes project public id' },
             member_id: { type: 'string', description: 'Member public id to suspend' },
           },
-          required: ['project_id', 'member_id'],
+          required: ['member_id'],
         },
       },
       required: ['body'],
@@ -243,7 +251,14 @@ export const membersTools: ProxyTool[] = [
     handler: async (a, config) => {
       const blocked = requireStepup(config);
       if (blocked) return blocked;
-      const result = await req(config, { method: 'POST', body: a.body }, 'create_member_revocation');
+      const result = await req(
+        config,
+        {
+          method: 'POST',
+          body: { ...parse.record(a.body), project_id: config.projectId },
+        },
+        'create_member_revocation',
+      );
       config.verifiedStepup = undefined;
       return result;
     },
@@ -254,19 +269,18 @@ export const membersTools: ProxyTool[] = [
       'Lift (unsuspend) a specific member\'s account: restores the suspension lock and brings back their ability to log in and create sessions. ' +
       'Use this to re-enable a member that was previously suspended via create_member_revocation. ' +
       'Verified action — requires step-up MFA. ' +
-      'Body: project_id, member_id. ' +
+      'Body: { member_id } — project_id comes from TRANSCODES_TOKEN. ' +
       MEMBER_REVOCATION_API_NOTE,
     inputSchema: {
       type: 'object',
       properties: {
         body: {
           type: 'object',
-          description: 'Request body. ' + PROJECT_ID_GUIDANCE,
+          description: 'project_id is set from TRANSCODES_TOKEN by the server.',
           properties: {
-            project_id: { type: 'string', description: 'Transcodes project public id' },
             member_id: { type: 'string', description: 'Member public id to unsuspend' },
           },
-          required: ['project_id', 'member_id'],
+          required: ['member_id'],
         },
       },
       required: ['body'],
@@ -274,7 +288,14 @@ export const membersTools: ProxyTool[] = [
     handler: async (a, config) => {
       const blocked = requireStepup(config);
       if (blocked) return blocked;
-      const result = await req(config, { method: 'DELETE', body: a.body }, 'lift_member_revocation');
+      const result = await req(
+        config,
+        {
+          method: 'DELETE',
+          body: { ...parse.record(a.body), project_id: config.projectId },
+        },
+        'lift_member_revocation',
+      );
       config.verifiedStepup = undefined;
       return result;
     },

@@ -2,6 +2,8 @@
 
 An MCP server that lets AI assistants — Cursor, Claude Desktop, etc. — interact with your [Transcodes](https://transcodes.io) account through natural language.
 
+Authentication uses a **single member MCP JWT** (`TRANSCODES_TOKEN`). The token carries `organizationId`, `projectId`, `memberId`, and must use audience `transcodes-mcp`. The server sends the token to the Transcodes API as the **`X-API-Key`** header.
+
 ---
 
 ## Node.js version
@@ -22,15 +24,25 @@ This package requires **Node.js 20+** (same as `@modelcontextprotocol/sdk`). MCP
       "command": "npx",
       "args": ["@bigstrider/transcodes-mcp-server"],
       "env": {
-        "TRANSCODES_API_KEY": "tc_live_...",
-        "TRANSCODES_PROJECT_ID": "your_project_id"
+        "TRANSCODES_BACKEND_URL": "https://api.transcodes.com",
+        "TRANSCODES_TOKEN": "<member MCP JWT from the Transcodes console>",
+        "TRANSCODES_BACKEND_ENDPOINTS": "{\"get_project\":\"/project\",\"get_member\":\"/auth/member\"}"
       }
     }
   }
 }
 ```
 
-> `TRANSCODES_PROJECT_ID` is optional, but without it the AI will ask for a project ID on every request.
+All three env vars above are required. `TRANSCODES_BACKEND_ENDPOINTS` is a JSON map from MCP tool name to the API path after `/v1`. Only tools you list are exposed; extend the map with additional tool names and paths as needed for your deployment (do not paste a full catalog here — keep the map minimal).
+
+### Token claims (expected shape)
+
+The JWT payload should include at least:
+
+- `iss` — e.g. `https://api.transcodes.com`
+- `organizationId`, `projectId`, `memberId`
+- `aud` — must include `transcodes-mcp`
+- `jti`, `iat`, `exp` — standard JWT fields (`exp` must be in the future when the server starts)
 
 ---
 

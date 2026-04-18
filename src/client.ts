@@ -1,6 +1,6 @@
 /**
  * Transcodes backend HTTP client.
- * Sends the organization API key as `X-API-Key` (not Bearer).
+ * Sends TRANSCODES_TOKEN (JWT) on every request as the `X-API-Key` header.
  * Returns all responses (including 4xx/5xx) as a JSON string so the AI can inspect them.
  */
 import axios, { type Method } from 'axios';
@@ -21,8 +21,9 @@ export type RequestInput = {
    */
   stepUpSid?: string;
   /**
-   * true면 본문을 보내지 않음 (DELETE …/resources/:key + query만 등).
-   * false/미설정이면 본문이 없을 때는 {} + application/json (Nest @Body() 검증용).
+   * When true, do not send a request body at all (e.g. DELETE …/resources/:key with query only).
+   * When false/unset, an empty body becomes `{}` with Content-Type application/json so Nest's
+   * `@Body()` validation still accepts the request.
    */
   omitBody?: boolean;
 };
@@ -64,7 +65,7 @@ export async function request(
       params,
       data,
       headers: {
-        'X-API-Key': config.apiKey,
+        'X-API-Key': config.token,
         Accept: 'application/json',
         ...(input.stepUpSid ? { 'X-Step-Up-Session-Id': input.stepUpSid } : {}),
         ...(data !== undefined ? { 'Content-Type': 'application/json' } : {}),

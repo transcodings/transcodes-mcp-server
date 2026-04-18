@@ -18,7 +18,7 @@ export type ProxyConfig = {
   backendUrl: string;
   apiBaseV1: string;
   apiKey: string;
-  defaultProjectId?: string;
+  projectId?: string;
   /** TRANSCODES_MEMBER_EMAIL → step-up 인증 시 기본 멤버 식별 */
   memberEmail?: string;
   /** poll_stepup_session verified 시 저장 */
@@ -64,8 +64,7 @@ export function loadConfig(): ProxyConfig {
     throw new Error(`TRANSCODES_BACKEND_URL is not a valid URL: ${backendUrl}`);
   }
 
-  const defaultProjectId =
-    process.env.TRANSCODES_PROJECT_ID?.trim() || undefined;
+  const projectId = process.env.TRANSCODES_PROJECT_ID?.trim() || undefined;
   const apiBaseV1 = `${backendUrl}/v1`;
 
   const endpointsRaw = process.env.TRANSCODES_BACKEND_ENDPOINTS?.trim();
@@ -81,8 +80,7 @@ export function loadConfig(): ProxyConfig {
     }
   }
 
-  const memberEmail =
-    process.env.TRANSCODES_MEMBER_EMAIL?.trim() || undefined;
+  const memberEmail = process.env.TRANSCODES_MEMBER_EMAIL?.trim() || undefined;
 
-  return { backendUrl, apiBaseV1, apiKey, defaultProjectId, memberEmail, endpointMap };
+  return { backendUrl, apiBaseV1, apiKey, projectId, memberEmail, endpointMap };
 }

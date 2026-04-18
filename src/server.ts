@@ -77,7 +77,7 @@ export function createMcpServer(config: ProxyConfig): McpServer {
       throw new McpError(-32602, `Unknown prompt: ${request.params.name}`);
     }
 
-    const projectId = config.defaultProjectId ?? '(not set)';
+    const projectId = config.projectId ?? '(not set)';
 
     return {
       messages: [

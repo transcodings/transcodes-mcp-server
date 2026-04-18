@@ -43,25 +43,25 @@ describe('loadConfig', () => {
     expect(config.apiBaseV1).toBe('https://api.example.com/v1');
   });
 
-  it('sets defaultProjectId from TRANSCODES_PROJECT_ID', () => {
+  it('sets projectId from TRANSCODES_PROJECT_ID', () => {
     stubValidEnv();
     vi.stubEnv('TRANSCODES_PROJECT_ID', 'proj-123');
     const config = loadConfig();
-    expect(config.defaultProjectId).toBe('proj-123');
+    expect(config.projectId).toBe('proj-123');
   });
 
-  it('defaultProjectId is undefined when TRANSCODES_PROJECT_ID is empty', () => {
+  it('projectId is undefined when TRANSCODES_PROJECT_ID is empty', () => {
     stubValidEnv();
     vi.stubEnv('TRANSCODES_PROJECT_ID', '');
     const config = loadConfig();
-    expect(config.defaultProjectId).toBeUndefined();
+    expect(config.projectId).toBeUndefined();
   });
 
   it('parses TRANSCODES_BACKEND_ENDPOINTS JSON into a Map', () => {
     stubValidEnv();
     vi.stubEnv(
       'TRANSCODES_BACKEND_ENDPOINTS',
-      '{"get_project":"/project","list_members":"/members"}',
+      '{"get_project":"/project","list_members":"/members"}'
     );
     const config = loadConfig();
     expect(config.endpointMap).toBeInstanceOf(Map);

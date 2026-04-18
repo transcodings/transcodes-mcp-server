@@ -48,7 +48,7 @@ describe('getMcpTools', () => {
 describe('dispatchTool', () => {
   it('throws McpError(MethodNotFound) for unknown tool', async () => {
     await expect(
-      dispatchTool('nonexistent_tool', {}, baseConfig),
+      dispatchTool('nonexistent_tool', {}, baseConfig)
     ).rejects.toThrow(McpError);
 
     try {
@@ -62,7 +62,7 @@ describe('dispatchTool', () => {
   it('dispatches ALWAYS_VISIBLE tool successfully', async () => {
     const result = await dispatchTool('get_current_project_id', {}, baseConfig);
     const parsed = JSON.parse(result);
-    // No defaultProjectId set, so ok: false
+    // No projectId set, so ok: false
     expect(parsed.ok).toBe(false);
   });
 
@@ -71,8 +71,8 @@ describe('dispatchTool', () => {
       ...baseConfig,
       endpointMap: new Map([['other_tool', '/other']]),
     };
-    await expect(
-      dispatchTool('get_project', {}, config),
-    ).rejects.toThrow(McpError);
+    await expect(dispatchTool('get_project', {}, config)).rejects.toThrow(
+      McpError
+    );
   });
 });

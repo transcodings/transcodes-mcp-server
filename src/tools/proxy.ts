@@ -68,7 +68,7 @@ export const proxyTools: ProxyTool[] = [
       'Call this tool first when you need the project ID instead of asking the user.',
     inputSchema: { type: 'object', properties: {} },
     handler: async (_args, config) => {
-      const projectId = config.defaultProjectId;
+      const projectId = config.projectId;
       if (!projectId) {
         return JSON.stringify(
           {
@@ -111,7 +111,7 @@ export const proxyTools: ProxyTool[] = [
           2
         );
       }
-      config.defaultProjectId = id;
+      config.projectId = id;
       return JSON.stringify(
         {
           ok: true,
@@ -163,8 +163,7 @@ export const proxyTools: ProxyTool[] = [
       required: ['email'],
     },
     handler: async (args, config) => {
-      const email =
-        typeof args.email === 'string' ? args.email.trim() : '';
+      const email = typeof args.email === 'string' ? args.email.trim() : '';
       if (!email) {
         return JSON.stringify(
           { ok: false, message: 'email is required.' },
@@ -205,7 +204,7 @@ export const proxyTools: ProxyTool[] = [
           2
         );
       }
-      const projectId = config.defaultProjectId;
+      const projectId = config.projectId;
       if (!projectId) {
         return JSON.stringify(
           {

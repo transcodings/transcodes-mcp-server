@@ -1,6 +1,6 @@
 /**
  * Transcodes backend HTTP client.
- * Sends TRANSCODES_TOKEN (JWT) on every request as the `X-API-Key` header.
+ * Sends TRANSCODES_TOKEN (JWT) on every request as the `x-transcodes-token` header.
  * Returns all responses (including 4xx/5xx) as a JSON string so the AI can inspect them.
  */
 import axios, { type Method } from 'axios';
@@ -31,7 +31,7 @@ export type RequestInput = {
 function jsonBodyForMethod(
   method: Method,
   body: unknown | undefined,
-  omitBody: boolean | undefined,
+  omitBody: boolean | undefined
 ): unknown | undefined {
   const m = String(method).toUpperCase();
   if (m === 'GET' || m === 'HEAD') return undefined;
@@ -42,7 +42,7 @@ function jsonBodyForMethod(
 
 export async function request(
   config: ProxyConfig,
-  input: RequestInput,
+  input: RequestInput
 ): Promise<string> {
   const path = input.path.startsWith('/') ? input.path : `/${input.path}`;
   const url = `${config.apiBaseV1}${path}`;
@@ -65,7 +65,7 @@ export async function request(
       params,
       data,
       headers: {
-        'X-API-Key': config.token,
+        'x-transcodes-token': config.token,
         Accept: 'application/json',
         ...(input.stepUpSid ? { 'X-Step-Up-Session-Id': input.stepUpSid } : {}),
         ...(data !== undefined ? { 'Content-Type': 'application/json' } : {}),
@@ -81,7 +81,7 @@ export async function request(
         data: response.data,
       },
       null,
-      2,
+      2
     );
   } catch (error) {
     // Intentionally omit the raw error message to avoid leaking internal host/URL info.
@@ -97,7 +97,7 @@ export async function request(
         data: { error: 'Network Request Failed', message: networkMessage },
       },
       null,
-      2,
+      2
     );
   }
 }

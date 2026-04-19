@@ -1,7 +1,7 @@
 {
   "name": "@bigstrider/transcodes-mcp-server",
   "version": "1.2.1",
-  "description": "stdio MCP server that proxies HTTP requests to Transcodes API with a member MCP JWT (X-API-Key header)",
+  "description": "stdio MCP server that proxies HTTP requests to Transcodes API with a member MCP JWT (x-transcodes-token header)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

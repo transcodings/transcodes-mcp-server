@@ -3,7 +3,9 @@ import { request } from '../client.ts';
 import type { ProxyConfig } from '../config.ts';
 
 const { axiosFn, isAxiosErrorFn } = vi.hoisted(() => {
-  const axiosFn = vi.fn() as ReturnType<typeof vi.fn> & { isAxiosError: ReturnType<typeof vi.fn> };
+  const axiosFn = vi.fn() as ReturnType<typeof vi.fn> & {
+    isAxiosError: ReturnType<typeof vi.fn>;
+  };
   const isAxiosErrorFn = vi.fn();
   axiosFn.isAxiosError = isAxiosErrorFn;
   return { axiosFn, isAxiosErrorFn };
@@ -31,22 +33,24 @@ describe('request', () => {
   it('returns ok: true with status and data on success', async () => {
     axiosFn.mockResolvedValue({ status: 200, data: { id: 1 } });
 
-    const result = JSON.parse(await request(config, { method: 'GET', path: '/roles' }));
+    const result = JSON.parse(
+      await request(config, { method: 'GET', path: '/roles' })
+    );
 
     expect(result.ok).toBe(true);
     expect(result.status).toBe(200);
     expect(result.data).toEqual({ id: 1 });
   });
 
-  it('sends X-API-Key header carrying the JWT', async () => {
+  it('sends x-transcodes-token header carrying the JWT', async () => {
     axiosFn.mockResolvedValue({ status: 200, data: {} });
 
     await request(config, { method: 'GET', path: '/roles' });
 
     expect(axiosFn).toHaveBeenCalledWith(
       expect.objectContaining({
-        headers: expect.objectContaining({ 'X-API-Key': 'test-jwt' }),
-      }),
+        headers: expect.objectContaining({ 'x-transcodes-token': 'test-jwt' }),
+      })
     );
   });
 
@@ -56,7 +60,7 @@ describe('request', () => {
     await request(config, { method: 'GET', path: '/project/123' });
 
     expect(axiosFn).toHaveBeenCalledWith(
-      expect.objectContaining({ url: 'https://api.test.com/v1/project/123' }),
+      expect.objectContaining({ url: 'https://api.test.com/v1/project/123' })
     );
   });
 
@@ -66,7 +70,7 @@ describe('request', () => {
     await request(config, { method: 'GET', path: 'project/123' });
 
     expect(axiosFn).toHaveBeenCalledWith(
-      expect.objectContaining({ url: 'https://api.test.com/v1/project/123' }),
+      expect.objectContaining({ url: 'https://api.test.com/v1/project/123' })
     );
   });
 
@@ -80,7 +84,7 @@ describe('request', () => {
     });
 
     expect(axiosFn).toHaveBeenCalledWith(
-      expect.objectContaining({ params: { page: '1' } }),
+      expect.objectContaining({ params: { page: '1' } })
     );
   });
 
@@ -90,7 +94,7 @@ describe('request', () => {
     await request(config, { method: 'GET', path: '/roles', body: { foo: 1 } });
 
     expect(axiosFn).toHaveBeenCalledWith(
-      expect.objectContaining({ data: undefined }),
+      expect.objectContaining({ data: undefined })
     );
   });
 
@@ -104,11 +108,11 @@ describe('request', () => {
     });
 
     expect(axiosFn).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { name: 'admin' } }),
+      expect.objectContaining({ data: { name: 'admin' } })
     );
   });
 
-  it('sends X-API-Key and JSON body for DELETE (same as POST)', async () => {
+  it('sends x-transcodes-token and JSON body for DELETE (same as POST)', async () => {
     axiosFn.mockResolvedValue({ status: 200, data: {} });
 
     await request(config, {
@@ -122,14 +126,14 @@ describe('request', () => {
         method: 'DELETE',
         data: { project_id: 'p1', member_id: 'm1' },
         headers: expect.objectContaining({
-          'X-API-Key': 'test-jwt',
+          'x-transcodes-token': 'test-jwt',
           'Content-Type': 'application/json',
         }),
-      }),
+      })
     );
   });
 
-  it('sends X-API-Key when omitBody is true (query-only DELETE)', async () => {
+  it('sends x-transcodes-token when omitBody is true (query-only DELETE)', async () => {
     axiosFn.mockResolvedValue({ status: 200, data: {} });
 
     await request(config, {
@@ -141,16 +145,18 @@ describe('request', () => {
 
     expect(axiosFn).toHaveBeenCalledWith(
       expect.objectContaining({
-        headers: expect.objectContaining({ 'X-API-Key': 'test-jwt' }),
+        headers: expect.objectContaining({ 'x-transcodes-token': 'test-jwt' }),
         data: undefined,
-      }),
+      })
     );
   });
 
   it('returns ok: false for 4xx/5xx without throwing', async () => {
     axiosFn.mockResolvedValue({ status: 403, data: { error: 'Forbidden' } });
 
-    const result = JSON.parse(await request(config, { method: 'GET', path: '/roles' }));
+    const result = JSON.parse(
+      await request(config, { method: 'GET', path: '/roles' })
+    );
 
     expect(result.ok).toBe(false);
     expect(result.status).toBe(403);
@@ -160,7 +166,9 @@ describe('request', () => {
     axiosFn.mockRejectedValue(new Error('ENOTFOUND'));
     isAxiosErrorFn.mockReturnValue(false);
 
-    const result = JSON.parse(await request(config, { method: 'GET', path: '/roles' }));
+    const result = JSON.parse(
+      await request(config, { method: 'GET', path: '/roles' })
+    );
 
     expect(result.ok).toBe(false);
     expect(result.status).toBe(0);
@@ -172,7 +180,9 @@ describe('request', () => {
     axiosFn.mockRejectedValue(err);
     isAxiosErrorFn.mockReturnValue(true);
 
-    const result = JSON.parse(await request(config, { method: 'GET', path: '/roles' }));
+    const result = JSON.parse(
+      await request(config, { method: 'GET', path: '/roles' })
+    );
 
     expect(result.ok).toBe(false);
     expect(result.status).toBe(0);
@@ -185,7 +195,7 @@ describe('request', () => {
     await request(config, { method: 'GET', path: '/roles' });
 
     expect(axiosFn).toHaveBeenCalledWith(
-      expect.objectContaining({ timeout: 30_000 }),
+      expect.objectContaining({ timeout: 30_000 })
     );
   });
 });

@@ -49,7 +49,7 @@ export const parse = {
 
 /**
  * Returns whether step-up MFA is still valid. If not verified, returns a blocked JSON string; if verified, null.
- * Call before sensitive tool handlers (revoke_member, retire_*, passcode_create, etc.).
+ * Call before sensitive tool handlers (retire_*, suspend_member, unsuspend_member, passcode_create, etc.).
  */
 export function requireStepup(config: ProxyConfig): string | null {
   const v = config.verifiedStepup;
@@ -108,13 +108,9 @@ const UPGRADE_HINT =
  * Resolves the final URL from TRANSCODES_BACKEND_ENDPOINTS + optional pathSuffix and makes the request.
  * Full URL: `${apiBaseV1}${base}${pathSuffix}` (see client.ts — path is after `/v1`).
  *
- * Sensitive tools (call requireStepup in code first) and their endpoint map / final paths:
- * - revoke_member: DELETE map `/auth/member` — no suffix — body `{ project_id, member_id }`
- * - retire_role: DELETE map `/auth/role` — suffix `/:role_id` — body `{ project_id }`
- * - retire_resource: DELETE map `/auth/resources` — suffix `/:resource_key` — query `project_id`, omitBody
- * - passcode_create: POST map `/auth/passcode/create` — body CreatePasscodeDto
- * - create_stepup_session: POST …/step-up/session — body includes comment (one sentence for the UI)
- * - poll_stepup_session: GET same map base — suffix `/:sid`
+ * Sensitive tools (each handler calls `requireStepup` first and clears `verifiedStepup` on completion):
+ *   retire_member, suspend_member, unsuspend_member, update_member_role,
+ *   retire_role, set_role_permissions, retire_resource, passcode_create.
  *
  * Appends an upgradeHint field when the response is a 403 plan-limit error.
  */

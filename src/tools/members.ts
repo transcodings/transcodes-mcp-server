@@ -1,13 +1,17 @@
 import type { ProxyTool } from './tool-utils.ts';
 import { parse, req, requireStepup } from './tool-utils.ts';
 
-// revoke_member: DELETE /v1/auth/member, body: { project_id, member_id }. Call after step-up.
+// Member tools split by intent:
+//   retire_member      — DELETE /v1/auth/member             (PERMANENT delete, kill switch)
+//   suspend_member     — POST   /v1/auth/member/revocation  (temporary block)
+//   unsuspend_member   — DELETE /v1/auth/member/revocation  (lift the block)
+//   get_member_suspension — GET /v1/auth/member/revocation  (status check)
 
 /**
- * AuthController member revocation — the path MUST use the singular **member** segment.
+ * AuthController member suspension — the path MUST use the singular **member** segment.
  * Wrong examples: /auth/members/revocation, /members/revocation, /member/suspend, PUT/PATCH.
  */
-const MEMBER_REVOCATION_API_NOTE =
+const MEMBER_SUSPENSION_API_NOTE =
   'Exact path after /v1: /auth/member/revocation (singular member, NOT members). ' +
   'GET=query only; POST=suspend body; DELETE=unsuspend body. No PUT, PATCH, or /member/suspend.';
 
@@ -35,7 +39,7 @@ export const membersTools: ProxyTool[] = [
             email: parse.str(a, 'email'),
           },
         },
-        'get_member',
+        'get_member'
       ),
   },
   {
@@ -64,7 +68,7 @@ export const membersTools: ProxyTool[] = [
             order: parse.str(a, 'order'),
           },
         },
-        'list_members_paginated',
+        'list_members_paginated'
       ),
   },
   {
@@ -88,14 +92,14 @@ export const membersTools: ProxyTool[] = [
             member_id: String(a.member_id),
           },
         },
-        'list_member_devices',
+        'list_member_devices'
       ),
   },
   {
     name: 'create_member',
     description:
       'Create a member (CreateMemberDto). member_id/name may be auto-generated. Use for onboarding or manual provisioning. ' +
-      'Auth: TRANSCODES_TOKEN sent as X-API-Key (not in body).',
+      'Auth: TRANSCODES_TOKEN sent as x-transcodes-token (not in body).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -105,9 +109,19 @@ export const membersTools: ProxyTool[] = [
             'CreateMemberDto fields (project_id is set from TRANSCODES_TOKEN by the server, not passed here).',
           properties: {
             email: { type: 'string', description: 'Member email address' },
-            name: { type: 'string', description: 'Display name (optional, max 100 chars)' },
-            role: { type: 'string', description: 'Role name to assign (optional, max 50 chars)' },
-            metadata: { type: 'object', description: 'Arbitrary key-value metadata (optional)', additionalProperties: true },
+            name: {
+              type: 'string',
+              description: 'Display name (optional, max 100 chars)',
+            },
+            role: {
+              type: 'string',
+              description: 'Role name to assign (optional, max 50 chars)',
+            },
+            metadata: {
+              type: 'object',
+              description: 'Arbitrary key-value metadata (optional)',
+              additionalProperties: true,
+            },
           },
           required: ['email'],
         },
@@ -121,35 +135,43 @@ export const membersTools: ProxyTool[] = [
           method: 'POST',
           body: { ...parse.record(a.body), project_id: config.projectId },
         },
-        'create_member',
+        'create_member'
       ),
   },
   {
     name: 'update_member',
     description:
-      'Replace member fields (UpdateMemberDto). Full-document update. ' +
-      'Auth: TRANSCODES_TOKEN sent as X-API-Key (not in body).',
+      'Update member fields (UpdateMemberDto, flat shape). ' +
+      'Auth: TRANSCODES_TOKEN sent as x-transcodes-token (not in body). ' +
+      'member_id is required — supply the target member explicitly (it may differ from the caller).',
     inputSchema: {
       type: 'object',
       properties: {
         body: {
           type: 'object',
           description:
-            'UpdateMemberDto (project_id is set from TRANSCODES_TOKEN by the server, not passed here).',
+            'UpdateMemberDto fields (project_id is set from TRANSCODES_TOKEN by the server, not passed here).',
           properties: {
-            member_id: { type: 'string', description: 'Member public id to update' },
-            body: {
+            member_id: {
+              type: 'string',
+              description: 'Member public id to update',
+            },
+            name: {
+              type: 'string',
+              description: 'Display name (max 100 chars)',
+            },
+            email: { type: 'string', description: 'Email address' },
+            role: {
+              type: 'string',
+              description: 'Role name (max 50 chars)',
+            },
+            metadata: {
               type: 'object',
-              description: 'Fields to update (MemberUpdateBody)',
-              properties: {
-                name: { type: 'string', description: 'Display name (max 100 chars)' },
-                email: { type: 'string', description: 'Email address' },
-                role: { type: 'string', description: 'Role name (max 50 chars)' },
-                metadata: { type: 'object', description: 'Arbitrary key-value metadata', additionalProperties: true },
-              },
+              description: 'Arbitrary key-value metadata',
+              additionalProperties: true,
             },
           },
-          required: ['member_id', 'body'],
+          required: ['member_id'],
         },
       },
       required: ['body'],
@@ -161,15 +183,17 @@ export const membersTools: ProxyTool[] = [
           method: 'PUT',
           body: { ...parse.record(a.body), project_id: config.projectId },
         },
-        'update_member',
+        'update_member'
       ),
   },
   {
-    name: 'revoke_member',
+    name: 'retire_member',
     description:
-      'Revoke a member\'s access and clean up their project enrollment. ' +
-      'Use when the user wants to remove, drop, or dismiss a member. ' +
-      'Verified action — requires step-up MFA. Body: { member_id } — project_id comes from TRANSCODES_TOKEN.',
+      'PERMANENTLY delete a member from the project (kill switch — irreversible). ' +
+      'Use only when the user wants to fully delete / remove / get rid of a member. ' +
+      'For a temporary block use suspend_member instead. ' +
+      'Verified action — requires step-up MFA. Body: { member_id } — project_id comes from TRANSCODES_TOKEN. ' +
+      'Exact path after /v1: DELETE /auth/member (singular member, NOT /auth/members or /auth/member/revocation).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -177,7 +201,10 @@ export const membersTools: ProxyTool[] = [
           type: 'object',
           description: 'project_id is set from TRANSCODES_TOKEN by the server.',
           properties: {
-            member_id: { type: 'string', description: 'Member public id to revoke' },
+            member_id: {
+              type: 'string',
+              description: 'Member public id to permanently remove',
+            },
           },
           required: ['member_id'],
         },
@@ -193,19 +220,19 @@ export const membersTools: ProxyTool[] = [
           method: 'DELETE',
           body: { ...parse.record(a.body), project_id: config.projectId },
         },
-        'revoke_member',
+        'retire_member'
       );
       config.verifiedStepup = undefined;
       return result;
     },
   },
   {
-    name: 'get_member_revocation',
+    name: 'get_member_suspension',
     description:
-      'Check when a specific member\'s account or session was suspended (locked/blocked). ' +
-      'Returns { revoked_at: ISO date string } if the member is currently suspended, or { revoked_at: null } if active. ' +
-      'Use this to find out whether a member is suspended and exactly when the suspension was applied. ' +
-      MEMBER_REVOCATION_API_NOTE,
+      'Check whether a member is currently suspended and when the suspension was applied. ' +
+      'Returns { revoked_at: ISO date string } if suspended, or { revoked_at: null } if active. ' +
+      'This is a status check only — it does NOT modify anything. ' +
+      MEMBER_SUSPENSION_API_NOTE,
     inputSchema: {
       type: 'object',
       properties: {
@@ -223,17 +250,17 @@ export const membersTools: ProxyTool[] = [
             member_id: String(a.member_id),
           },
         },
-        'get_member_revocation',
+        'get_member_suspension'
       ),
   },
   {
-    name: 'create_member_revocation',
+    name: 'suspend_member',
     description:
-      'Suspend a specific member\'s account: blocks their login and invalidates all active sessions immediately. ' +
-      'Once suspended, the member cannot sign in or use any session tokens until the suspension is lifted. ' +
-      'Verified action — requires step-up MFA. ' +
-      'Body: { member_id } — project_id comes from TRANSCODES_TOKEN. POST only. ' +
-      MEMBER_REVOCATION_API_NOTE,
+      'Temporarily SUSPEND a member: blocks login and invalidates all active sessions immediately. ' +
+      'The member can be restored later via unsuspend_member — this is REVERSIBLE (not a delete). ' +
+      'For permanent removal use retire_member instead. ' +
+      'Verified action — requires step-up MFA. Body: { member_id } — project_id comes from TRANSCODES_TOKEN. POST only. ' +
+      MEMBER_SUSPENSION_API_NOTE,
     inputSchema: {
       type: 'object',
       properties: {
@@ -241,7 +268,10 @@ export const membersTools: ProxyTool[] = [
           type: 'object',
           description: 'project_id is set from TRANSCODES_TOKEN by the server.',
           properties: {
-            member_id: { type: 'string', description: 'Member public id to suspend' },
+            member_id: {
+              type: 'string',
+              description: 'Member public id to suspend',
+            },
           },
           required: ['member_id'],
         },
@@ -257,20 +287,19 @@ export const membersTools: ProxyTool[] = [
           method: 'POST',
           body: { ...parse.record(a.body), project_id: config.projectId },
         },
-        'create_member_revocation',
+        'suspend_member'
       );
       config.verifiedStepup = undefined;
       return result;
     },
   },
   {
-    name: 'lift_member_revocation',
+    name: 'unsuspend_member',
     description:
-      'Lift (unsuspend) a specific member\'s account: restores the suspension lock and brings back their ability to log in and create sessions. ' +
-      'Use this to re-enable a member that was previously suspended via create_member_revocation. ' +
-      'Verified action — requires step-up MFA. ' +
-      'Body: { member_id } — project_id comes from TRANSCODES_TOKEN. ' +
-      MEMBER_REVOCATION_API_NOTE,
+      "Lift a member's suspension and restore their ability to log in and create sessions. " +
+      'Use only on members previously suspended via suspend_member. ' +
+      'Verified action — requires step-up MFA. Body: { member_id } — project_id comes from TRANSCODES_TOKEN. ' +
+      MEMBER_SUSPENSION_API_NOTE,
     inputSchema: {
       type: 'object',
       properties: {
@@ -278,7 +307,10 @@ export const membersTools: ProxyTool[] = [
           type: 'object',
           description: 'project_id is set from TRANSCODES_TOKEN by the server.',
           properties: {
-            member_id: { type: 'string', description: 'Member public id to unsuspend' },
+            member_id: {
+              type: 'string',
+              description: 'Member public id to unsuspend',
+            },
           },
           required: ['member_id'],
         },
@@ -294,7 +326,7 @@ export const membersTools: ProxyTool[] = [
           method: 'DELETE',
           body: { ...parse.record(a.body), project_id: config.projectId },
         },
-        'lift_member_revocation',
+        'unsuspend_member'
       );
       config.verifiedStepup = undefined;
       return result;

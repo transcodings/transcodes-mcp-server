@@ -17,7 +17,7 @@ export const STEPUP_TTL_MS = 10 * 60 * 1_000;
 export type ProxyConfig = {
   backendUrl: string;
   apiBaseV1: string;
-  /** Member MCP JWT (TRANSCODES_TOKEN). Sent on every request as `X-API-Key`. */
+  /** Member MCP JWT (TRANSCODES_TOKEN). Sent on every request as `x-transcodes-token`. */
   token: string;
   /** JWT organizationId claim */
   organizationId: string;
@@ -79,7 +79,9 @@ export function loadConfig(): ProxyConfig {
     projectId = parsed.claims.projectId;
     memberId = parsed.claims.memberId;
     for (const w of parsed.warnings) {
-      process.stderr.write(`[transcodes-mcp-server] WARN TRANSCODES_TOKEN: ${w}\n`);
+      process.stderr.write(
+        `[transcodes-mcp-server] WARN TRANSCODES_TOKEN: ${w}\n`
+      );
     }
   } catch (e) {
     const detail = e instanceof Error ? e.message : String(e);
@@ -102,7 +104,9 @@ export function loadConfig(): ProxyConfig {
     );
   }
   if (endpointMap.size === 0) {
-    throw new Error('TRANSCODES_BACKEND_ENDPOINTS must define at least one tool');
+    throw new Error(
+      'TRANSCODES_BACKEND_ENDPOINTS must define at least one tool'
+    );
   }
 
   return {

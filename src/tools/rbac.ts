@@ -1,11 +1,13 @@
 import type { ProxyTool } from './tool-utils.ts';
 import {
   PROJECT_ID_GUIDANCE,
+  parse,
   req,
   requireStepup,
 } from './tool-utils.ts';
 
 // retire_role: DELETE …/role/:role_id + body { project_id }. retire_resource: DELETE …/resources/:key + ?project_id (no body). Call after step-up.
+// Body `project_id` is always injected from `config.projectId` (TRANSCODES_TOKEN pid claim).
 
 /** RBAC — maps to RoleController */
 export const rbacTools: ProxyTool[] = [
@@ -30,19 +32,25 @@ export const rbacTools: ProxyTool[] = [
       properties: {
         body: {
           type: 'object',
-          description: 'Request body (CreateRoleDto). ' + PROJECT_ID_GUIDANCE,
+          description: 'CreateRoleDto fields (project_id is set from TRANSCODES_TOKEN by the server, not passed here). ' + PROJECT_ID_GUIDANCE,
           properties: {
-            project_id: { type: 'string', description: 'Transcodes project public id' },
             name: { type: 'string', description: 'Role name (lowercase alphanumeric + hyphens, 2-50 chars)' },
             description: { type: 'string', description: 'Role description (optional, max 500 chars)' },
           },
-          required: ['project_id', 'name'],
+          required: ['name'],
         },
       },
       required: ['body'],
     },
     handler: async (a, config) =>
-      req(config, { method: 'POST', body: a.body }, 'create_role'),
+      req(
+        config,
+        {
+          method: 'POST',
+          body: { ...parse.record(a.body), project_id: config.projectId },
+        },
+        'create_role',
+      ),
   },
   {
     name: 'update_role',
@@ -53,12 +61,10 @@ export const rbacTools: ProxyTool[] = [
         role_id: { type: 'string' },
         body: {
           type: 'object',
-          description: 'Request body (UpdateRoleDto). ' + PROJECT_ID_GUIDANCE,
+          description: 'UpdateRoleDto fields (project_id is set from TRANSCODES_TOKEN by the server, not passed here). ' + PROJECT_ID_GUIDANCE,
           properties: {
-            project_id: { type: 'string', description: 'Transcodes project public id' },
             description: { type: 'string', description: 'Role description (max 500 chars)' },
           },
-          required: ['project_id'],
         },
       },
       required: ['role_id', 'body'],
@@ -66,7 +72,10 @@ export const rbacTools: ProxyTool[] = [
     handler: async (a, config) =>
       req(
         config,
-        { method: 'PUT', body: a.body },
+        {
+          method: 'PUT',
+          body: { ...parse.record(a.body), project_id: config.projectId },
+        },
         'update_role',
         `/${String(a.role_id)}`,
       ),
@@ -75,28 +84,21 @@ export const rbacTools: ProxyTool[] = [
     name: 'retire_role',
     description:
       'Retire a role from the project. Use when the user wants to remove, drop, or discard a role. ' +
-      'Verified action — requires step-up MFA. Body: { project_id } — required.',
+      'Verified action — requires step-up MFA. ' +
+      'Body { project_id } is injected from TRANSCODES_TOKEN by the server.',
     inputSchema: {
       type: 'object',
       properties: {
         role_id: { type: 'string' },
-        body: {
-          type: 'object',
-          description: 'Request body. ' + PROJECT_ID_GUIDANCE,
-          properties: {
-            project_id: { type: 'string', description: 'Transcodes project public id' },
-          },
-          required: ['project_id'],
-        },
       },
-      required: ['role_id', 'body'],
+      required: ['role_id'],
     },
     handler: async (a, config) => {
       const blocked = requireStepup(config);
       if (blocked) return blocked;
       const result = await req(
         config,
-        { method: 'DELETE', body: a.body },
+        { method: 'DELETE', body: { project_id: config.projectId } },
         'retire_role',
         `/${String(a.role_id)}`,
       );
@@ -115,9 +117,8 @@ export const rbacTools: ProxyTool[] = [
         role_id: { type: 'string' },
         body: {
           type: 'object',
-          description: 'Request body (UpdateRolePermissionsDto). ' + PROJECT_ID_GUIDANCE,
+          description: 'UpdateRolePermissionsDto fields (project_id is set from TRANSCODES_TOKEN by the server, not passed here). ' + PROJECT_ID_GUIDANCE,
           properties: {
-            project_id: { type: 'string', description: 'Transcodes project public id' },
             permissions: {
               type: 'object',
               description: 'Resource-key → { create, read, update, delete } map. Each action value: 0=deny, 1=allow, 2=allow+step-up',
@@ -132,7 +133,7 @@ export const rbacTools: ProxyTool[] = [
               },
             },
           },
-          required: ['project_id', 'permissions'],
+          required: ['permissions'],
         },
       },
       required: ['role_id', 'body'],
@@ -142,7 +143,10 @@ export const rbacTools: ProxyTool[] = [
       if (blocked) return blocked;
       const result = await req(
         config,
-        { method: 'PUT', body: a.body },
+        {
+          method: 'PUT',
+          body: { ...parse.record(a.body), project_id: config.projectId },
+        },
         'set_role_permissions',
         `/${String(a.role_id)}/permissions`,
       );
@@ -160,13 +164,12 @@ export const rbacTools: ProxyTool[] = [
       properties: {
         body: {
           type: 'object',
-          description: 'Request body (UpdateMemberRoleDto). ' + PROJECT_ID_GUIDANCE,
+          description: 'UpdateMemberRoleDto fields (project_id is set from TRANSCODES_TOKEN by the server, not passed here). ' + PROJECT_ID_GUIDANCE,
           properties: {
-            project_id: { type: 'string', description: 'Transcodes project public id' },
             member_id: { type: 'string', description: 'Member public id' },
             role: { type: 'string', description: 'Role name to assign (lowercase alphanumeric + hyphens)' },
           },
-          required: ['project_id', 'member_id', 'role'],
+          required: ['member_id', 'role'],
         },
       },
       required: ['body'],
@@ -174,7 +177,14 @@ export const rbacTools: ProxyTool[] = [
     handler: async (a, config) => {
       const blocked = requireStepup(config);
       if (blocked) return blocked;
-      const result = await req(config, { method: 'PUT', body: a.body }, 'update_member_role');
+      const result = await req(
+        config,
+        {
+          method: 'PUT',
+          body: { ...parse.record(a.body), project_id: config.projectId },
+        },
+        'update_member_role',
+      );
       config.verifiedStepup = undefined;
       return result;
     },
@@ -188,20 +198,26 @@ export const rbacTools: ProxyTool[] = [
       properties: {
         body: {
           type: 'object',
-          description: 'Request body (CheckRbacPermissionDto). ' + PROJECT_ID_GUIDANCE,
+          description: 'CheckRbacPermissionDto fields (project_id is set from TRANSCODES_TOKEN by the server, not passed here). ' + PROJECT_ID_GUIDANCE,
           properties: {
-            project_id: { type: 'string', description: 'Transcodes project public id' },
             member_id: { type: 'string', description: 'Member public id' },
             resource: { type: 'string', description: 'Resource key to check' },
             action: { type: 'string', enum: ['create', 'read', 'update', 'delete'], description: 'CRUD action to check' },
           },
-          required: ['project_id', 'member_id', 'resource', 'action'],
+          required: ['member_id', 'resource', 'action'],
         },
       },
       required: ['body'],
     },
     handler: async (a, config) =>
-      req(config, { method: 'POST', body: a.body }, 'check_rbac_permission'),
+      req(
+        config,
+        {
+          method: 'POST',
+          body: { ...parse.record(a.body), project_id: config.projectId },
+        },
+        'check_rbac_permission',
+      ),
   },
   {
     name: 'get_resources',
@@ -224,20 +240,26 @@ export const rbacTools: ProxyTool[] = [
       properties: {
         body: {
           type: 'object',
-          description: 'Request body (CreateResourceDto). ' + PROJECT_ID_GUIDANCE,
+          description: 'CreateResourceDto fields (project_id is set from TRANSCODES_TOKEN by the server, not passed here). ' + PROJECT_ID_GUIDANCE,
           properties: {
-            project_id: { type: 'string', description: 'Transcodes project public id' },
             key: { type: 'string', description: 'Resource key (lowercase alphanumeric + hyphens, max 50 chars)' },
             name: { type: 'string', description: 'Display name (max 100 chars)' },
             description: { type: 'string', description: 'Resource description (optional, max 500 chars)' },
           },
-          required: ['project_id', 'key', 'name'],
+          required: ['key', 'name'],
         },
       },
       required: ['body'],
     },
     handler: async (a, config) =>
-      req(config, { method: 'POST', body: a.body }, 'create_resource'),
+      req(
+        config,
+        {
+          method: 'POST',
+          body: { ...parse.record(a.body), project_id: config.projectId },
+        },
+        'create_resource',
+      ),
   },
   {
     name: 'update_resource',
@@ -249,12 +271,10 @@ export const rbacTools: ProxyTool[] = [
         resource_key: { type: 'string' },
         body: {
           type: 'object',
-          description: 'Request body (UpdateResourceDto). ' + PROJECT_ID_GUIDANCE,
+          description: 'UpdateResourceDto fields (project_id is set from TRANSCODES_TOKEN by the server, not passed here). ' + PROJECT_ID_GUIDANCE,
           properties: {
-            project_id: { type: 'string', description: 'Transcodes project public id' },
             description: { type: 'string', description: 'Resource description (max 500 chars)' },
           },
-          required: ['project_id'],
         },
       },
       required: ['resource_key', 'body'],
@@ -262,7 +282,10 @@ export const rbacTools: ProxyTool[] = [
     handler: async (a, config) =>
       req(
         config,
-        { method: 'PATCH', body: a.body },
+        {
+          method: 'PATCH',
+          body: { ...parse.record(a.body), project_id: config.projectId },
+        },
         'update_resource',
         `/${encodeURIComponent(String(a.resource_key))}`,
       ),

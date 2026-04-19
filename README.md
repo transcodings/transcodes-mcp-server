@@ -2,7 +2,7 @@
 
 An MCP server that lets AI assistants — Cursor, Claude Desktop, etc. — interact with your [Transcodes](https://transcodes.io) account through natural language.
 
-Authentication uses a **single member MCP JWT** (`TRANSCODES_TOKEN`). The token carries `organizationId`, `projectId`, `memberId`, and must use audience `transcodes-mcp`. The server sends the token to the Transcodes API as the **`X-API-Key`** header.
+Authentication uses a **single member MCP JWT** (`TRANSCODES_TOKEN`). The token carries `organizationId`, `projectId`, `memberId`, and must use audience `transcodes-mcp`. The server sends the token to the Transcodes API as the **`x-transcodes-token`** header.
 
 ---
 
@@ -40,7 +40,7 @@ All three env vars above are required. `TRANSCODES_BACKEND_ENDPOINTS` is a JSON 
 The JWT payload should include at least:
 
 - `iss` — e.g. `https://api.transcodes.com`
-- `organizationId`, `projectId`, `memberId`
+- `oid`, `pid`, `mid` — organization / project / member ids (the parser only reads these short claim names)
 - `aud` — must include `transcodes-mcp`
 - `jti`, `iat`, `exp` — standard JWT fields (`exp` must be in the future when the server starts)
 

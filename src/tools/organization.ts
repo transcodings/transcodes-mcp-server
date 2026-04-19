@@ -1,19 +1,20 @@
 import type { ProxyTool } from './tool-utils.ts';
-import {
-  blocked,
-  parse,
-  projectProps,
-  req,
-} from './tool-utils.ts';
+import { blocked } from './tool-utils.ts';
 
 const MSG_PLATFORM_CONSOLE =
-  'User, organization, and API key management must be done in the Transcodes console. This MCP tool does not call the API.';
+  'User and organization management must be done in the Transcodes console. This MCP tool does not call the API.';
 
 const MSG_ORG_CONSOLE =
   'Organization settings, user invitations, and invitation management (send, update, cancel, accept, decline) must be done directly in the Transcodes console at https://transcodes.io. This MCP tool does not call the API.';
 
+const MSG_MEMBER_TOKEN_CONSOLE =
+  'Per-member MCP tokens (TRANSCODES_TOKEN — the JWT sent as the x-transcodes-token header can only be issued from the Transcodes console at https://app.transcodes.io. ' +
+  'This MCP tool does not call the API — open the console, sign in, and create or rotate the token from the member detail page; then store it in your MCP client config.';
+
 /**
- * Membership 일부 + User/Org/API Key 도구는 콘솔 전용(차단).
+ * Console-only (blocked) tools: user and organization management, plus per-member MCP token issuance.
+ * Membership / Stripe proxy tools live in `membership.ts` — do not duplicate them here
+ * (same tool name would overwrite the earlier registration in `tools/index.ts`).
  */
 export const organizationTools: ProxyTool[] = [
   {
@@ -25,8 +26,7 @@ export const organizationTools: ProxyTool[] = [
   },
   {
     name: 'user_find',
-    description:
-      'Blocked: user lookup must be done in the Transcodes console.',
+    description: 'Blocked: user lookup must be done in the Transcodes console.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -38,19 +38,22 @@ export const organizationTools: ProxyTool[] = [
   },
   {
     name: 'user_create',
-    description: 'Blocked: user creation must be done in the Transcodes console.',
+    description:
+      'Blocked: user creation must be done in the Transcodes console.',
     inputSchema: { type: 'object', properties: {} },
     handler: async () => blocked(MSG_PLATFORM_CONSOLE),
   },
   {
     name: 'user_patch',
-    description: 'Blocked: user updates must be done in the Transcodes console.',
+    description:
+      'Blocked: user updates must be done in the Transcodes console.',
     inputSchema: { type: 'object', properties: {} },
     handler: async () => blocked(MSG_PLATFORM_CONSOLE),
   },
   {
     name: 'user_delete',
-    description: 'Blocked: user deletion must be done in the Transcodes console.',
+    description:
+      'Blocked: user deletion must be done in the Transcodes console.',
     inputSchema: { type: 'object', properties: {} },
     handler: async () => blocked(MSG_PLATFORM_CONSOLE),
   },
@@ -168,110 +171,12 @@ export const organizationTools: ProxyTool[] = [
     handler: async () => blocked(MSG_ORG_CONSOLE),
   },
   {
-    name: 'api_keys_list',
+    name: 'member_token_create',
     description:
-      'Blocked: API keys must be managed in the Transcodes console.',
-    inputSchema: {
-      type: 'object',
-      properties: { organization_id: { type: 'string' } },
-      required: ['organization_id'],
-    },
-    handler: async () => blocked(MSG_PLATFORM_CONSOLE),
-  },
-  {
-    name: 'api_keys_create',
-    description:
-      'Blocked: API keys must be created in the Transcodes console.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        organization_id: { type: 'string' },
-        body: { type: 'object', additionalProperties: true },
-      },
-      required: ['organization_id', 'body'],
-    },
-    handler: async () => blocked(MSG_PLATFORM_CONSOLE),
-  },
-  {
-    name: 'api_keys_patch',
-    description:
-      'Blocked: API keys must be updated in the Transcodes console.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        organization_id: { type: 'string' },
-        api_key_id: { type: 'string' },
-        body: { type: 'object', additionalProperties: true },
-      },
-      required: ['organization_id', 'api_key_id', 'body'],
-    },
-    handler: async () => blocked(MSG_PLATFORM_CONSOLE),
-  },
-  {
-    name: 'api_keys_delete',
-    description:
-      'Blocked: API keys must be deleted in the Transcodes console.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        organization_id: { type: 'string' },
-        api_key_id: { type: 'string' },
-      },
-      required: ['organization_id', 'api_key_id'],
-    },
-    handler: async () => blocked(MSG_PLATFORM_CONSOLE),
-  },
-  {
-    name: 'membership_plans',
-    description: '공개 플랜 목록.',
+      'Blocked: issuing a per-member MCP token (TRANSCODES_TOKEN — the JWT used as x-transcodes-token must be done in the Transcodes console only. ' +
+      'Use this when the user asks to "create / issue / rotate / regenerate / get a new" member token, MCP token, x-transcodes-token, or member JWT. ' +
+      'This MCP tool does not call the API — direct the user to the Transcodes console (https://transcodes.io) member detail page to mint the token, then have them paste it into their MCP client config.',
     inputSchema: { type: 'object', properties: {} },
-    handler: async (_a, config) =>
-      req(config, { method: 'GET' }, 'membership_plans'),
-  },
-  {
-    name: 'membership_plans_limits',
-    description: '플랜별 제한.',
-    inputSchema: { type: 'object', properties: {} },
-    handler: async (_a, config) =>
-      req(config, { method: 'GET' }, 'membership_plans_limits'),
-  },
-  {
-    name: 'membership_customer_status_by_project',
-    description: '프로젝트 기준 구독 (SkipAuth).',
-    inputSchema: {
-      type: 'object',
-      properties: { ...projectProps },
-    },
-    handler: async (a, config) =>
-      req(
-        config,
-        { method: 'GET', query: { project_id: parse.projectId(a, config) } },
-        'membership_customer_status_by_project',
-      ),
-  },
-  {
-    name: 'membership_create_checkout_session',
-    description:
-      'MCP/API-key checkout: POST /v1/membership/mcp/session — creates a Stripe Checkout session via organization API key and returns a one-time redirect URL. ' +
-      'Use for plan upgrade or first purchase (e.g. free → standard). ' +
-      'Body: price_id from membership_plans; optional mode: "subscription" (default) | "payment" | "setup". ' +
-      'The returned URL expires after a short window — redirect the user immediately after receiving it.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        body: {
-          type: 'object',
-          description: 'CreateCheckoutSessionDto (MCP session): price_id (string, required) — Stripe price ID from membership_plans; mode (string, optional) — "subscription" | "payment" | "setup".',
-          properties: {
-            price_id: { type: 'string', description: 'Stripe price ID (from membership_plans)' },
-            mode: { type: 'string', enum: ['subscription', 'payment', 'setup'], description: 'Checkout mode (default: subscription)' },
-          },
-          required: ['price_id'],
-        },
-      },
-      required: ['body'],
-    },
-    handler: async (a, config) =>
-      req(config, { method: 'POST', body: a.body }, 'membership_create_checkout_session'),
+    handler: async () => blocked(MSG_MEMBER_TOKEN_CONSOLE),
   },
 ];

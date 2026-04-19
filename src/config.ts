@@ -2,32 +2,36 @@
  * Configuration loader.
  * Reads values from environment variables set in the MCP client config
  * (Cursor / Claude Desktop mcp.json → `env` block).
- *
- * 모든 값은 반드시 환경변수로 주입해야 합니다.
  */
-/** step-up 인증 완료 상태 (세션 메모리에만 유지) */
+import { parseMemberAccessToken } from './token.ts';
+
+/** Verified step-up state (kept in session memory only). */
 export type VerifiedStepup = {
   sid: string;
   verifiedAt: number;
 };
 
-/** step-up 유효 기간 (밀리초) — 백엔드 TTL과 동일 */
+/** Step-up validity window (ms) — must match the backend TTL. */
 export const STEPUP_TTL_MS = 10 * 60 * 1_000;
 
 export type ProxyConfig = {
   backendUrl: string;
   apiBaseV1: string;
-  apiKey: string;
-  defaultProjectId?: string;
-  /** TRANSCODES_MEMBER_EMAIL → step-up 인증 시 기본 멤버 식별 */
-  memberEmail?: string;
-  /** poll_stepup_session verified 시 저장 */
+  /** Member MCP JWT (TRANSCODES_TOKEN). Sent on every request as `x-transcodes-token`. */
+  token: string;
+  /** JWT organizationId claim */
+  organizationId: string;
+  /** JWT projectId claim — fixed at issue time and not overridden at runtime. */
+  projectId: string;
+  /** JWT memberId claim — default member for step-up and get_my_profile. */
+  memberId: string;
+  /** Set after poll_stepup_session reports verified. */
   verifiedStepup?: VerifiedStepup;
-  /** TRANSCODES_BACKEND_ENDPOINTS JSON → 도구 이름 → `/v1` 이후 경로 */
-  endpointMap?: Map<string, string>;
+  /** TRANSCODES_BACKEND_ENDPOINTS JSON → tool name → path after `/v1` (required). */
+  endpointMap: Map<string, string>;
 };
 
-/** TRANSCODES_BACKEND_ENDPOINTS JSON 문자열 → Map (값은 반드시 문자열 경로) */
+/** TRANSCODES_BACKEND_ENDPOINTS JSON string → Map (values must be string paths). */
 function parseEndpointMapJson(raw: string): Map<string, string> {
   const parsed: unknown = JSON.parse(raw);
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
@@ -43,7 +47,7 @@ function parseEndpointMapJson(raw: string): Map<string, string> {
   return map;
 }
 
-/** process.env에서 ProxyConfig 조립. dotenv는 index.ts에서 선로드 */
+/** Assembles ProxyConfig from process.env. dotenv is loaded earlier in index.ts. */
 export function loadConfig(): ProxyConfig {
   const backendUrl = process.env.TRANSCODES_BACKEND_URL?.trim().replace(
     /\/$/,
@@ -51,38 +55,67 @@ export function loadConfig(): ProxyConfig {
   );
   if (!backendUrl) throw new Error('TRANSCODES_BACKEND_URL is required');
 
-  const apiKey = process.env.TRANSCODES_API_KEY ?? '';
-  if (!apiKey) {
-    throw new Error(
-      'TRANSCODES_API_KEY is required (organization API key from Transcodes console)'
-    );
-  }
-
   try {
     new URL(backendUrl);
   } catch {
     throw new Error(`TRANSCODES_BACKEND_URL is not a valid URL: ${backendUrl}`);
   }
 
-  const defaultProjectId =
-    process.env.TRANSCODES_PROJECT_ID?.trim() || undefined;
   const apiBaseV1 = `${backendUrl}/v1`;
 
-  const endpointsRaw = process.env.TRANSCODES_BACKEND_ENDPOINTS?.trim();
-  let endpointMap: Map<string, string> | undefined;
-  if (endpointsRaw) {
-    try {
-      endpointMap = parseEndpointMapJson(endpointsRaw);
-    } catch (e) {
-      const detail = e instanceof Error ? e.message : String(e);
-      throw new Error(
-        `TRANSCODES_BACKEND_ENDPOINTS must be valid JSON: {"tool":"/path",...} — ${detail}`
-      );
-    }
+  const tokenRaw = process.env.TRANSCODES_TOKEN?.trim() ?? '';
+  if (!tokenRaw) {
+    throw new Error('TRANSCODES_TOKEN is required (member MCP JWT)');
   }
 
-  const memberEmail =
-    process.env.TRANSCODES_MEMBER_EMAIL?.trim() || undefined;
+  let token: string;
+  let organizationId: string;
+  let projectId: string;
+  let memberId: string;
+  try {
+    const parsed = parseMemberAccessToken(tokenRaw);
+    token = parsed.raw;
+    organizationId = parsed.claims.organizationId;
+    projectId = parsed.claims.projectId;
+    memberId = parsed.claims.memberId;
+    for (const w of parsed.warnings) {
+      process.stderr.write(
+        `[transcodes-mcp-server] WARN TRANSCODES_TOKEN: ${w}\n`
+      );
+    }
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    throw new Error(`TRANSCODES_TOKEN: ${detail}`);
+  }
 
-  return { backendUrl, apiBaseV1, apiKey, defaultProjectId, memberEmail, endpointMap };
+  const endpointsRaw = process.env.TRANSCODES_BACKEND_ENDPOINTS?.trim();
+  if (!endpointsRaw) {
+    throw new Error(
+      'TRANSCODES_BACKEND_ENDPOINTS is required (JSON map: {"tool":"/path",...})'
+    );
+  }
+  let endpointMap: Map<string, string>;
+  try {
+    endpointMap = parseEndpointMapJson(endpointsRaw);
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    throw new Error(
+      `TRANSCODES_BACKEND_ENDPOINTS must be valid JSON: {"tool":"/path",...} — ${detail}`
+    );
+  }
+  if (endpointMap.size === 0) {
+    throw new Error(
+      'TRANSCODES_BACKEND_ENDPOINTS must define at least one tool'
+    );
+  }
+
+  return {
+    backendUrl,
+    apiBaseV1,
+    token,
+    organizationId,
+    projectId,
+    memberId,
+    endpointMap,
+  };
 }

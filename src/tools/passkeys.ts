@@ -2,7 +2,6 @@ import type { ProxyTool } from './tool-utils.ts';
 import {
   blockedWithConsoleFromProject,
   parse,
-  projectProps,
   req,
 } from './tool-utils.ts';
 
@@ -14,7 +13,7 @@ export const passkeysTools: ProxyTool[] = [
       'List passkeys for a member. Server typically filters by project rp_id.',
     inputSchema: {
       type: 'object',
-      properties: { ...projectProps, member_id: { type: 'string' } },
+      properties: { member_id: { type: 'string' } },
     },
     handler: async (a, config) =>
       req(
@@ -22,7 +21,7 @@ export const passkeysTools: ProxyTool[] = [
         {
           method: 'GET',
           query: {
-            project_id: parse.projectId(a, config),
+            project_id: config.projectId,
             member_id: parse.str(a, 'member_id'),
           },
         },
@@ -36,10 +35,10 @@ export const passkeysTools: ProxyTool[] = [
       'Returns the project domain URL (?tc_mode=console) for the user to visit, log in, and register a passkey.',
     inputSchema: {
       type: 'object',
-      properties: { ...projectProps },
+      properties: {},
     },
-    handler: async (a, config) =>
-      blockedWithConsoleFromProject(config, parse.projectId(a, config)),
+    handler: async (_a, config) =>
+      blockedWithConsoleFromProject(config, config.projectId),
   },
   {
     name: 'passkeys_update',
@@ -48,10 +47,10 @@ export const passkeysTools: ProxyTool[] = [
       'Returns the project domain URL (?tc_mode=console) for the user to visit, log in, and update passkey metadata.',
     inputSchema: {
       type: 'object',
-      properties: { ...projectProps },
+      properties: {},
     },
-    handler: async (a, config) =>
-      blockedWithConsoleFromProject(config, parse.projectId(a, config)),
+    handler: async (_a, config) =>
+      blockedWithConsoleFromProject(config, config.projectId),
   },
   {
     name: 'passkeys_revoke',
@@ -60,9 +59,9 @@ export const passkeysTools: ProxyTool[] = [
       'Returns the project domain URL (?tc_mode=console) for the user to visit, log in, and revoke a passkey.',
     inputSchema: {
       type: 'object',
-      properties: { ...projectProps },
+      properties: {},
     },
-    handler: async (a, config) =>
-      blockedWithConsoleFromProject(config, parse.projectId(a, config)),
+    handler: async (_a, config) =>
+      blockedWithConsoleFromProject(config, config.projectId),
   },
 ];

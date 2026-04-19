@@ -4,7 +4,7 @@ import { request, type RequestInput } from '../client.ts';
 import type { ProxyTool } from './tool-utils.ts';
 import { parse } from './tool-utils.ts';
 
-/** 전용 도구가 없는 엔드포인트용 escape hatch — 유저가 경로를 직접 제공 */
+/** Escape hatch for endpoints with no dedicated tool — the user supplies the path directly. */
 export const httpTools: ProxyTool[] = [
   {
     name: 'transcodes_http_request',
@@ -27,10 +27,7 @@ export const httpTools: ProxyTool[] = [
       required: ['method', 'path'],
     },
     handler: async (a, config) => {
-      if (
-        !config.endpointMap ||
-        !config.endpointMap.has('transcodes_http_request')
-      ) {
+      if (!config.endpointMap.has('transcodes_http_request')) {
         return JSON.stringify(
           {
             ok: false,

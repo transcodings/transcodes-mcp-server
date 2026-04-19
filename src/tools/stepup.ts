@@ -1,21 +1,17 @@
 /**
- * Step-up 인증 MCP 도구.
- * create_stepup_session → 유저가 브라우저에서 MFA 완료 후 알림 → poll_stepup_session 으로 확인 (주기적 대기 루프 없음).
+ * Step-up MFA MCP tools.
+ * Flow: create_stepup_session → user completes MFA in the browser and tells us → poll_stepup_session
+ * confirms (no automatic polling loop).
  *
- * 백엔드 엔드포인트(env base 동일, poll 은 pathSuffix 로 /:sid):
- *   POST …/step-up/session → create_stepup_session (comment: 한 문장, Step-up UI 표시)
- *   GET  /v1/auth/temp-session/step-up/session/:sid     → poll_stepup_session
+ * Backend endpoints (same env base, poll appends `/:sid` as pathSuffix):
+ *   POST …/step-up/session                          → create_stepup_session (comment: one sentence shown in the step-up UI)
+ *   GET  /v1/auth/temp-session/step-up/session/:sid → poll_stepup_session
  */
 import type { ProxyTool } from './tool-utils.ts';
-import {
-  parse,
-  projectProps,
-  req,
-  resolveMemberIdByEmail,
-} from './tool-utils.ts';
+import { parse, req } from './tool-utils.ts';
 import type { ProxyConfig } from '../config.ts';
 
-/** poll 응답에서 step-up 상태 문자열(pending | verified)만 추출 */
+/** Extracts the step-up status string ("pending" | "verified") from the poll response. */
 function extractPollStepStatus(parsed: unknown): string | undefined {
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
     return undefined;
@@ -36,23 +32,12 @@ function extractPollStepStatus(parsed: unknown): string | undefined {
   return typeof st === 'string' ? st : undefined;
 }
 
-/** member_id 인자 또는 config.memberEmail로 member_id 확정 */
-async function resolveMemberIdForStepup(
+/** Prefers the `member_id` tool argument; falls back to the `mid` claim from TRANSCODES_TOKEN. */
+function resolveMemberIdForStepup(
   a: Record<string, unknown>,
   config: ProxyConfig,
-): Promise<{ member_id: string } | { error: string }> {
-  const projectId = parse.projectId(a, config);
-  const explicit = parse.str(a, 'member_id');
-  if (explicit) return { member_id: explicit };
-  const email = config.memberEmail;
-  if (!email) {
-    return {
-      error:
-        'member_id is required; provide it as an argument, ' +
-        'or set TRANSCODES_MEMBER_EMAIL / set_member_email',
-    };
-  }
-  return resolveMemberIdByEmail(config, projectId, email);
+): string {
+  return parse.str(a, 'member_id') ?? config.memberId;
 }
 
 export const stepupTools: ProxyTool[] = [
@@ -65,12 +50,11 @@ export const stepupTools: ProxyTool[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        ...projectProps,
         member_id: {
           type: 'string',
           description:
             'Member public ID to authenticate; ' +
-            'if omitted, resolved from TRANSCODES_MEMBER_EMAIL or set_member_email',
+            'if omitted, uses memberId from TRANSCODES_TOKEN (config)',
         },
         action: {
           type: 'string',
@@ -89,11 +73,7 @@ export const stepupTools: ProxyTool[] = [
       required: ['comment'],
     },
     handler: async (a, config) => {
-      const resolved = await resolveMemberIdForStepup(a, config);
-      if ('error' in resolved) {
-        return JSON.stringify({ ok: false, message: resolved.error }, null, 2);
-      }
-      const { member_id } = resolved;
+      const member_id = resolveMemberIdForStepup(a, config);
 
       const comment = parse.str(a, 'comment');
       if (!comment || !comment.trim()) {
@@ -112,7 +92,7 @@ export const stepupTools: ProxyTool[] = [
         {
           method: 'POST',
           body: {
-            project_id: parse.projectId(a, config),
+            project_id: config.projectId,
             member_id,
             action: parse.str(a, 'action'),
             resource: parse.str(a, 'resource'),
@@ -158,14 +138,15 @@ export const stepupTools: ProxyTool[] = [
 
       try {
         const parsed: unknown = JSON.parse(raw);
-        // axios 래퍼: { ok, status: HTTP코드, data: 백엔드본문 }. step-up 문자열은 data.payload[0].status 에만 온다.
-        // 최상위 status 는 200 등 숫자라서 여기 쓰면 verified 를 절대 인식하지 못함.
+        // The axios wrapper returns { ok, status: HTTP code, data: backend body }. The step-up
+        // status string lives at data.payload[0].status — the top-level `status` is the numeric
+        // HTTP code (e.g. 200) so checking it here would never observe "verified".
         const stepStatus = extractPollStepStatus(parsed);
         if (stepStatus === 'verified') {
           config.verifiedStepup = { sid, verifiedAt: Date.now() };
         }
       } catch {
-        /* 파싱 실패해도 원본 응답은 반환 */
+        // Parsing failure is not fatal; we still return the raw response below.
       }
 
       return raw;

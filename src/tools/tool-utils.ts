@@ -9,7 +9,7 @@ import { request, type RequestInput } from '../client.ts';
 export interface ProxyTool extends Tool {
   handler: (
     args: Record<string, unknown>,
-    config: ProxyConfig,
+    config: ProxyConfig
   ) => Promise<string>;
 }
 
@@ -18,32 +18,18 @@ function isPlainRecord(v: unknown): v is Record<string, unknown> {
 }
 
 /**
- * Shared copy for MCP tool descriptions and schemas.
- * Recommended: set TRANSCODES_PROJECT_ID in the client env; otherwise ask the user.
+ * Shared copy for request-body descriptions (Nest DTOs still expect `project_id` in JSON).
+ * Query parameters use `config.projectId` only — MCP tool args do not accept `project_id`.
  */
 export const PROJECT_ID_GUIDANCE =
-  'Recommended: set TRANSCODES_PROJECT_ID in the MCP client env block (e.g. Cursor ~/.cursor/mcp.json or Claude Desktop mcpServers.*.env). ' +
-  'If it is not set, ask the user for the Transcodes project public id before calling.';
+  'project_id in the body must be the TRANSCODES_TOKEN project id (pid claim); it is not configurable per tool call.';
 
-/** Extracts project_id and optional fields from callTool arguments. */
+/** Extracts optional fields from callTool arguments. */
 export const parse = {
   /** Normalises MCP arguments to a plain record (guards against arrays and null). */
   record(v: unknown): Record<string, unknown> {
     if (isPlainRecord(v)) return v;
     return {};
-  },
-
-  /** Returns project_id from arguments, falling back to TRANSCODES_PROJECT_ID env. */
-  projectId(a: Record<string, unknown>, config: ProxyConfig): string {
-    const p = a.project_id ?? config.defaultProjectId;
-    if (typeof p !== 'string' || !p.trim()) {
-      throw new Error(
-        'project_id is missing. ' +
-          PROJECT_ID_GUIDANCE +
-          ' You can pass project_id in tool arguments once the user provides it.',
-      );
-    }
-    return p.trim();
   },
 
   /** Optional numeric query param (e.g. page, limit). */
@@ -63,27 +49,35 @@ export const parse = {
 
 /**
  * Returns whether step-up MFA is still valid. If not verified, returns a blocked JSON string; if verified, null.
- * Call before sensitive tool handlers (revoke_member, retire_*, passcode_create, etc.).
+ * Call before sensitive tool handlers (retire_*, suspend_member, unsuspend_member, passcode_create, etc.).
  */
 export function requireStepup(config: ProxyConfig): string | null {
   const v = config.verifiedStepup;
   if (!v) {
-    return JSON.stringify({
-      ok: false,
-      blocked: true,
-      message:
-        'Step-up MFA required. Call create_stepup_session first (comment: one short sentence for the step-up UI), ' +
-        'send the user the auth URL, then poll_stepup_session after they confirm',
-    }, null, 2);
+    return JSON.stringify(
+      {
+        ok: false,
+        blocked: true,
+        message:
+          'Step-up MFA required. Call create_stepup_session first (comment: one short sentence for the step-up UI), ' +
+          'send the user the auth URL, then poll_stepup_session after they confirm',
+      },
+      null,
+      2
+    );
   }
   if (Date.now() - v.verifiedAt > STEPUP_TTL_MS) {
     config.verifiedStepup = undefined;
-    return JSON.stringify({
-      ok: false,
-      blocked: true,
-      message:
-        'Step-up session has expired. Call create_stepup_session again',
-    }, null, 2);
+    return JSON.stringify(
+      {
+        ok: false,
+        blocked: true,
+        message:
+          'Step-up session has expired. Call create_stepup_session again',
+      },
+      null,
+      2
+    );
   }
   return null;
 }
@@ -91,7 +85,7 @@ export function requireStepup(config: ProxyConfig): string | null {
 /** Returns a rejected response for actions that must be performed on the site or console. */
 export function blocked(message: string): Promise<string> {
   return Promise.resolve(
-    JSON.stringify({ ok: false, blocked: true, message }, null, 2),
+    JSON.stringify({ ok: false, blocked: true, message }, null, 2)
   );
 }
 
@@ -114,13 +108,9 @@ const UPGRADE_HINT =
  * Resolves the final URL from TRANSCODES_BACKEND_ENDPOINTS + optional pathSuffix and makes the request.
  * Full URL: `${apiBaseV1}${base}${pathSuffix}` (see client.ts — path is after `/v1`).
  *
- * Sensitive tools (call requireStepup in code first) and their endpoint map / final paths:
- * - revoke_member: DELETE map `/auth/member` — no suffix — body `{ project_id, member_id }`
- * - retire_role: DELETE map `/auth/role` — suffix `/:role_id` — body `{ project_id }`
- * - retire_resource: DELETE map `/auth/resources` — suffix `/:resource_key` — query `project_id`, omitBody
- * - passcode_create: POST map `/auth/passcode/create` — body CreatePasscodeDto
- * - create_stepup_session: POST …/step-up/session — body includes comment (one sentence for the UI)
- * - poll_stepup_session: GET same map base — suffix `/:sid`
+ * Sensitive tools (each handler calls `requireStepup` first and clears `verifiedStepup` on completion):
+ *   retire_member, suspend_member, unsuspend_member, update_member_role,
+ *   retire_role, set_role_permissions, retire_resource, passcode_create.
  *
  * Appends an upgradeHint field when the response is a 403 plan-limit error.
  */
@@ -128,23 +118,22 @@ export async function req(
   config: ProxyConfig,
   input: Omit<RequestInput, 'path'>,
   toolName: string,
-  pathSuffix?: string,
+  pathSuffix?: string
 ): Promise<string> {
   const map = config.endpointMap;
-  if (!map) {
+  const base = map.get(toolName);
+  if (!base) {
     return blockedJson(
-      'TRANSCODES_BACKEND_ENDPOINTS is required. Set it to enable API tools',
+      `Tool '${toolName}' is not enabled. Add it to TRANSCODES_BACKEND_ENDPOINTS.`
     );
   }
-  if (!map.has(toolName)) {
-    return blockedJson(
-      `Tool '${toolName}' is not enabled. Add it to TRANSCODES_BACKEND_ENDPOINTS.`,
-    );
-  }
-  const base = map.get(toolName)!;
   const path = pathSuffix ? `${base}${pathSuffix}` : base;
   const stepUpSid = config.verifiedStepup?.sid;
-  const raw = await request(config, { ...input, path, ...(stepUpSid ? { stepUpSid } : {}) });
+  const raw = await request(config, {
+    ...input,
+    path,
+    ...(stepUpSid ? { stepUpSid } : {}),
+  });
 
   try {
     const parsed: unknown = JSON.parse(raw);
@@ -162,7 +151,10 @@ export async function req(
         !Array.isArray(data)
       ) {
         const errorCode = (data as Record<string, unknown>).errorCode;
-        if (typeof errorCode === 'string' && PLAN_LIMIT_ERROR_CODES.has(errorCode)) {
+        if (
+          typeof errorCode === 'string' &&
+          PLAN_LIMIT_ERROR_CODES.has(errorCode)
+        ) {
           return JSON.stringify({ ...p, upgradeHint: UPGRADE_HINT }, null, 2);
         }
       }
@@ -175,56 +167,26 @@ export async function req(
 }
 
 /**
- * Looks up a member public id by email via get_member.
- * Shared by create_stepup_session and similar flows.
- */
-export async function resolveMemberIdByEmail(
-  config: ProxyConfig,
-  projectId: string,
-  email: string,
-): Promise<{ member_id: string } | { error: string }> {
-  const raw = await req(
-    config,
-    { method: 'GET', query: { project_id: projectId, email } },
-    'get_member',
-  );
-  const parsed: unknown = JSON.parse(raw);
-  if (
-    parsed === null ||
-    typeof parsed !== 'object' ||
-    Array.isArray(parsed)
-  ) {
-    return { error: raw };
-  }
-  const p = parsed as Record<string, unknown>;
-  if (!p.ok) {
-    return { error: `get_member failed: ${raw}` };
-  }
-  const data = p.data as Record<string, unknown> | undefined;
-  const payload = data?.payload;
-  if (!Array.isArray(payload) || payload.length === 0) {
-    return { error: `No member found for email: ${email}` };
-  }
-  const member = payload[0] as Record<string, unknown>;
-  const id = member.id;
-  if (typeof id !== 'string' || !id) {
-    return { error: 'Member record has no id field' };
-  }
-  return { member_id: id };
-}
-
-/**
  * Fetches the project's domain_url and appends ?tc_mode=console.
  * Returns null if the request fails or domain_url is missing.
  */
 export async function getConsoleUrl(
   config: ProxyConfig,
-  projectId: string,
+  projectId: string
 ): Promise<string | null> {
   try {
-    const raw = await req(config, { method: 'GET' }, 'get_project', `/${projectId}`);
+    const raw = await req(
+      config,
+      { method: 'GET' },
+      'get_project',
+      `/${projectId}`
+    );
     const parsed: unknown = JSON.parse(raw);
-    if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+    if (
+      parsed !== null &&
+      typeof parsed === 'object' &&
+      !Array.isArray(parsed)
+    ) {
       const data = (parsed as Record<string, unknown>).data;
       if (data !== null && typeof data === 'object' && !Array.isArray(data)) {
         const payload = (data as Record<string, unknown>).payload;
@@ -253,7 +215,7 @@ export function blockedWithConsole(url: string | null): string {
       ? { ok: false, blocked: true, message, console_url: url }
       : { ok: false, blocked: true, message },
     null,
-    2,
+    2
   );
 }
 
@@ -263,20 +225,9 @@ export function blockedWithConsole(url: string | null): string {
  */
 export async function blockedWithConsoleFromProject(
   config: ProxyConfig,
-  projectId: string,
+  projectId: string
 ): Promise<string> {
   const url = await getConsoleUrl(config, projectId);
   return blockedWithConsole(url);
 }
-
-/** JSON Schema fragment: project_id (shared across tool input schemas). */
-export const projectProps = {
-  project_id: {
-    type: 'string',
-    description:
-      'Transcodes project public id. ' +
-      PROJECT_ID_GUIDANCE +
-      ' When TRANSCODES_PROJECT_ID is set in MCP env, this argument may be omitted.',
-  },
-};
 

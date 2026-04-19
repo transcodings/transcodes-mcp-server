@@ -9,17 +9,23 @@ const PROXY_TOOL_NAMES = [
   'stop_tunnel',
   'get_tunnel_status',
   'get_current_project_id',
-  'set_current_project_id',
+  'get_current_organization_id',
+  'get_current_member_id',
+  'get_my_profile',
 ];
 
 const baseConfig: ProxyConfig = {
   backendUrl: 'https://api.test.com',
   apiBaseV1: 'https://api.test.com/v1',
-  apiKey: 'key',
+  token: 'jwt',
+  organizationId: 'org',
+  projectId: 'proj',
+  memberId: 'mem',
+  endpointMap: new Map(),
 };
 
 describe('getMcpTools', () => {
-  it('returns only proxy tools when endpointMap is absent', () => {
+  it('returns only proxy tools when endpointMap is empty', () => {
     const tools = getMcpTools(baseConfig);
     const names = tools.map((t) => t.name);
     expect(names).toEqual(expect.arrayContaining(PROXY_TOOL_NAMES));
@@ -48,7 +54,7 @@ describe('getMcpTools', () => {
 describe('dispatchTool', () => {
   it('throws McpError(MethodNotFound) for unknown tool', async () => {
     await expect(
-      dispatchTool('nonexistent_tool', {}, baseConfig),
+      dispatchTool('nonexistent_tool', {}, baseConfig)
     ).rejects.toThrow(McpError);
 
     try {
@@ -62,8 +68,8 @@ describe('dispatchTool', () => {
   it('dispatches ALWAYS_VISIBLE tool successfully', async () => {
     const result = await dispatchTool('get_current_project_id', {}, baseConfig);
     const parsed = JSON.parse(result);
-    // No defaultProjectId set, so ok: false
-    expect(parsed.ok).toBe(false);
+    expect(parsed.ok).toBe(true);
+    expect(parsed.project_id).toBe('proj');
   });
 
   it('throws McpError for non-ALWAYS_VISIBLE tool not in endpointMap', async () => {
@@ -71,8 +77,8 @@ describe('dispatchTool', () => {
       ...baseConfig,
       endpointMap: new Map([['other_tool', '/other']]),
     };
-    await expect(
-      dispatchTool('get_project', {}, config),
-    ).rejects.toThrow(McpError);
+    await expect(dispatchTool('get_project', {}, config)).rejects.toThrow(
+      McpError
+    );
   });
 });

@@ -9,9 +9,9 @@ const MSG_PROJECT_PWA_AUTH_CONSOLE =
 
 /**
  * `/v1/project/...`
- * - get_project: GET /project/:project_id — 단건 조회
- * - get_projects: GET /project/organization/:organization_id — 조직의 프로젝트 목록
- * - PWA·인증 설정 변경은 콘솔 전용 (project_pwa_auth_console)
+ * - get_project:  GET /project/:project_id — fetch a single project
+ * - get_projects: GET /project/organization/:organization_id — list an organization's projects
+ * - PWA / authentication configuration changes are console-only (project_pwa_auth_console)
  */
 export const projectTools: ProxyTool[] = [
   {

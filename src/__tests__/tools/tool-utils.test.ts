@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { parse, blocked, blockedWithConsole, req } from '../../tools/tool-utils.ts';
+import {
+  parse,
+  blocked,
+  blockedWithConsole,
+  req,
+} from '../../tools/tool-utils.ts';
 import { request } from '../../client.ts';
 import type { ProxyConfig } from '../../config.ts';
 
@@ -14,7 +19,10 @@ function configWith(map: Record<string, string>): ProxyConfig {
   return {
     backendUrl: 'https://api.test.com',
     apiBaseV1: 'https://api.test.com/v1',
-    apiKey: 'key',
+    token: 'jwt',
+    organizationId: 'org',
+    projectId: 'proj',
+    memberId: 'mem',
     endpointMap: new Map(Object.entries(map)),
   };
 }
@@ -31,41 +39,8 @@ describe('parse.record', () => {
     'returns empty object for %s',
     (v) => {
       expect(parse.record(v)).toEqual({});
-    },
+    }
   );
-});
-
-// ─── parse.projectId ───
-
-describe('parse.projectId', () => {
-  const baseConfig: ProxyConfig = {
-    backendUrl: 'https://api.test.com',
-    apiBaseV1: 'https://api.test.com/v1',
-    apiKey: 'key',
-  };
-
-  it('extracts project_id from args', () => {
-    expect(parse.projectId({ project_id: 'proj-1' }, baseConfig)).toBe('proj-1');
-  });
-
-  it('falls back to config.defaultProjectId', () => {
-    const config = { ...baseConfig, defaultProjectId: 'default-proj' };
-    expect(parse.projectId({}, config)).toBe('default-proj');
-  });
-
-  it('throws when both args and config lack project_id', () => {
-    expect(() => parse.projectId({}, baseConfig)).toThrow('project_id is missing');
-  });
-
-  it('trims whitespace from project_id', () => {
-    expect(parse.projectId({ project_id: '  proj-1  ' }, baseConfig)).toBe('proj-1');
-  });
-
-  it('throws on whitespace-only project_id', () => {
-    expect(() => parse.projectId({ project_id: '  ' }, baseConfig)).toThrow(
-      'project_id is missing',
-    );
-  });
 });
 
 // ─── parse.num ───
@@ -149,20 +124,11 @@ describe('req', () => {
     mockedRequest.mockReset();
   });
 
-  it('returns blocked JSON when endpointMap is undefined', async () => {
-    const config: ProxyConfig = {
-      backendUrl: 'https://api.test.com',
-      apiBaseV1: 'https://api.test.com/v1',
-      apiKey: 'key',
-    };
-    const result = JSON.parse(await req(config, { method: 'GET' }, 'get_project'));
-    expect(result.blocked).toBe(true);
-    expect(result.message).toContain('TRANSCODES_BACKEND_ENDPOINTS');
-  });
-
   it('returns blocked JSON when tool is not in endpointMap', async () => {
     const config = configWith({ other_tool: '/other' });
-    const result = JSON.parse(await req(config, { method: 'GET' }, 'get_project'));
+    const result = JSON.parse(
+      await req(config, { method: 'GET' }, 'get_project')
+    );
     expect(result.blocked).toBe(true);
     expect(result.message).toContain('not enabled');
   });
@@ -198,10 +164,12 @@ describe('req', () => {
         ok: false,
         status: 403,
         data: { errorCode: 'ROLE_LIMIT_REACHED' },
-      }),
+      })
     );
 
-    const result = JSON.parse(await req(config, { method: 'GET' }, 'get_roles'));
+    const result = JSON.parse(
+      await req(config, { method: 'GET' }, 'get_roles')
+    );
     expect(result.upgradeHint).toContain('upgrade');
   });
 
@@ -212,10 +180,12 @@ describe('req', () => {
         ok: false,
         status: 403,
         data: { errorCode: 'FORBIDDEN' },
-      }),
+      })
     );
 
-    const result = JSON.parse(await req(config, { method: 'GET' }, 'get_roles'));
+    const result = JSON.parse(
+      await req(config, { method: 'GET' }, 'get_roles')
+    );
     expect(result).not.toHaveProperty('upgradeHint');
   });
 });

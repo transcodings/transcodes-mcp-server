@@ -1,6 +1,6 @@
 /**
- * MCP 도구 등록소: 도메인별 배열을 합치고 list/dispatch만 노출.
- * 실제 URL 경로는 TRANSCODES_BACKEND_ENDPOINTS 맵(tool-utils.req)에서만 결정.
+ * MCP tool registry: merges per-domain arrays and exposes only list/dispatch.
+ * Actual URL paths are resolved exclusively from the TRANSCODES_BACKEND_ENDPOINTS map (tool-utils.req).
  */
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
@@ -43,14 +43,14 @@ const ALL_TOOLS: ProxyTool[] = [
   ...proxyTools,
 ];
 
-/** 이름 → ProxyTool (시작 시 한 번만 구축) */
+/** name → ProxyTool (built once at startup). */
 const TOOL_MAP = new Map<string, ProxyTool>(ALL_TOOLS.map((t) => [t.name, t]));
 
 const ALWAYS_VISIBLE = new Set(proxyTools.map((t) => t.name));
 
 export function getMcpTools(config: ProxyConfig): Tool[] {
   return ALL_TOOLS
-    .filter((t) => ALWAYS_VISIBLE.has(t.name) || config.endpointMap?.has(t.name))
+    .filter((t) => ALWAYS_VISIBLE.has(t.name) || config.endpointMap.has(t.name))
     .map(({ handler: _handler, ...toolDef }) => toolDef);
 }
 
@@ -59,11 +59,8 @@ export async function dispatchTool(
   args: unknown,
   config: ProxyConfig,
 ): Promise<string> {
-  if (!ALWAYS_VISIBLE.has(name) && config.endpointMap && !config.endpointMap.has(name)) {
-    throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
-  }
   const tool = TOOL_MAP.get(name);
-  if (!tool) {
+  if (!tool || (!ALWAYS_VISIBLE.has(name) && !config.endpointMap.has(name))) {
     throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
   }
   return tool.handler(parse.record(args), config);

@@ -1,5 +1,11 @@
 # @bigstrider/transcodes-mcp-server
 
+## 1.3.0
+
+### Minor Changes
+
+- 74c7de3: refactored api key -> token
+
 ## 1.2.1
 
 ### Patch Changes

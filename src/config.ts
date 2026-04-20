@@ -2,7 +2,22 @@
  * Configuration loader.
  * Reads values from environment variables set in the MCP client config
  * (Cursor / Claude Desktop mcp.json → `env` block).
+ *
+ * End users only need to set `TRANSCODES_TOKEN`. `TRANSCODES_BACKEND_URL` and
+ * `TRANSCODES_BACKEND_ENDPOINTS` are SDK internals that fall back to the values
+ * defined in `src/constants.ts`; set them only when overriding (e.g. pointing
+ * at localhost in dev).
+ *
+ * CI WARNING — 빌드 시점에 이 파일의 `process.env.TRANSCODES_*` 참조를
+ * 리터럴 값으로 치환하지 말 것. 치환하면 runtime env override 가 무력화됨.
+ * 회귀 방지 가드: `scripts/verify-dist.js` (positive check — process.env
+ * references must survive in the compiled dist).
+ * 배경: THT-260.
  */
+import {
+  DEFAULT_BACKEND_URL,
+  DEFAULT_ENDPOINT_MAP_JSON,
+} from './constants.ts';
 import { parseMemberAccessToken } from './token.ts';
 
 /** Verified step-up state (kept in session memory only). */
@@ -27,7 +42,7 @@ export type ProxyConfig = {
   memberId: string;
   /** Set after poll_stepup_session reports verified. */
   verifiedStepup?: VerifiedStepup;
-  /** TRANSCODES_BACKEND_ENDPOINTS JSON → tool name → path after `/v1` (required). */
+  /** Tool name → path after `/v1`. Defaults to DEFAULT_ENDPOINT_MAP_JSON; env override supported. */
   endpointMap: Map<string, string>;
 };
 
@@ -47,13 +62,11 @@ function parseEndpointMapJson(raw: string): Map<string, string> {
   return map;
 }
 
-/** Assembles ProxyConfig from process.env. dotenv is loaded earlier in index.ts. */
+/** Assembles ProxyConfig from process.env (with constants.ts fallback). dotenv is loaded earlier in index.ts. */
 export function loadConfig(): ProxyConfig {
-  const backendUrl = process.env.TRANSCODES_BACKEND_URL?.trim().replace(
-    /\/$/,
-    ''
-  );
-  if (!backendUrl) throw new Error('TRANSCODES_BACKEND_URL is required');
+  const rawUrl =
+    process.env.TRANSCODES_BACKEND_URL?.trim() || DEFAULT_BACKEND_URL;
+  const backendUrl = rawUrl.replace(/\/$/, '');
 
   try {
     new URL(backendUrl);
@@ -88,12 +101,9 @@ export function loadConfig(): ProxyConfig {
     throw new Error(`TRANSCODES_TOKEN: ${detail}`);
   }
 
-  const endpointsRaw = process.env.TRANSCODES_BACKEND_ENDPOINTS?.trim();
-  if (!endpointsRaw) {
-    throw new Error(
-      'TRANSCODES_BACKEND_ENDPOINTS is required (JSON map: {"tool":"/path",...})'
-    );
-  }
+  const endpointsRaw =
+    process.env.TRANSCODES_BACKEND_ENDPOINTS?.trim() ||
+    DEFAULT_ENDPOINT_MAP_JSON;
   let endpointMap: Map<string, string>;
   try {
     endpointMap = parseEndpointMapJson(endpointsRaw);

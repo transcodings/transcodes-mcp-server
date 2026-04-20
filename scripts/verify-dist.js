@@ -19,7 +19,13 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const REQUIRED_SOURCE_REFS = ['process.env.TRANSCODES_BACKEND_URL'];
+// TRANSCODES_TOKEN 은 사용자별 JWT 라 CI 에서 치환될 이유가 거의 없지만,
+// 누군가 실수로 치환 스텝을 재도입해 배포 tarball 에 토큰이 박히는 최악의 시나리오를
+// 방지하기 위해 함께 감시한다.
+const REQUIRED_SOURCE_REFS = [
+  'process.env.TRANSCODES_BACKEND_URL',
+  'process.env.TRANSCODES_TOKEN',
+];
 
 /**
  * @typedef {{ok: true} | {ok: false, reason: string, detail: string}} VerifyResult

@@ -31,13 +31,14 @@ describe('verifyDist', () => {
     rmSync(tmpRoot, { recursive: true, force: true });
   });
 
-  it('passes when process.env.TRANSCODES_BACKEND_URL survives in *.js', () => {
+  it('passes when both process.env refs survive in *.js', () => {
     writeFixture(
       distDir,
       'config.js',
       `export function loadConfig(){
          const u = process.env.TRANSCODES_BACKEND_URL;
-         return { u };
+         const t = process.env.TRANSCODES_TOKEN;
+         return { u, t };
        }\n`
     );
 
@@ -45,12 +46,17 @@ describe('verifyDist', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('passes when ref lives in a different *.js than config', () => {
+  it('passes when refs live in different *.js files', () => {
     writeFixture(distDir, 'config.js', '// no env refs here\n');
     writeFixture(
       distDir,
       'url.js',
       'export const u = process.env.TRANSCODES_BACKEND_URL;\n'
+    );
+    writeFixture(
+      distDir,
+      'token.js',
+      'export const t = process.env.TRANSCODES_TOKEN;\n'
     );
 
     const result: VerifyResult = verifyDist(distDir);
@@ -61,7 +67,8 @@ describe('verifyDist', () => {
     writeFixture(
       distDir,
       'config.js',
-      `const u = "https://transcodesapis.com";\n`
+      `const u = "https://transcodesapis.com";
+       const t = process.env.TRANSCODES_TOKEN;\n`
     );
 
     const result: VerifyResult = verifyDist(distDir);
@@ -69,6 +76,22 @@ describe('verifyDist', () => {
     if (!result.ok) {
       expect(result.reason).toBe('substitution_detected');
       expect(result.detail).toContain('process.env.TRANSCODES_BACKEND_URL');
+    }
+  });
+
+  it('fails when TRANSCODES_TOKEN reference is missing (secret bake-in detected)', () => {
+    writeFixture(
+      distDir,
+      'config.js',
+      `const u = process.env.TRANSCODES_BACKEND_URL;
+       const t = "eyJhbGci...literal-jwt";\n`
+    );
+
+    const result: VerifyResult = verifyDist(distDir);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe('substitution_detected');
+      expect(result.detail).toContain('process.env.TRANSCODES_TOKEN');
     }
   });
 

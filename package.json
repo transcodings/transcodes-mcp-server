@@ -17,7 +17,8 @@
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "release-package": "npm run build && npx changeset publish"
+    "verify-dist": "node scripts/verify-dist.js",
+    "release-package": "npm run build && npm run verify-dist && npx changeset publish"
   },
   "engines": {
     "node": ">=20"

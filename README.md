@@ -31,17 +31,14 @@ This package requires **Node.js 20+** (same as `@modelcontextprotocol/sdk`). MCP
 }
 ```
 
-Only `TRANSCODES_TOKEN` is required. The server points at the Transcodes production API and exposes the full tool catalog by default — see `src/constants.ts` for the baked-in `DEFAULT_BACKEND_URL` and `DEFAULT_ENDPOINT_MAP_JSON`. Override them via env when running against a local backend or restricting the tool surface:
+Only `TRANSCODES_TOKEN` is required. The server points at the Transcodes production API and exposes the full tool catalog by default — see `src/constants.ts` for the baked-in `DEFAULT_BACKEND_URL` and `DEFAULT_ENDPOINT_MAP`. The tool catalog is a library-internal contract and is not configurable at runtime. To point at a local backend in dev, override `TRANSCODES_BACKEND_URL`:
 
 ```json
 "env": {
   "TRANSCODES_TOKEN": "<member MCP JWT>",
-  "TRANSCODES_BACKEND_URL": "http://localhost:3500",
-  "TRANSCODES_BACKEND_ENDPOINTS": "{\"get_project\":\"/project\"}"
+  "TRANSCODES_BACKEND_URL": "http://localhost:3500"
 }
 ```
-
-`TRANSCODES_BACKEND_ENDPOINTS` is a JSON map from MCP tool name to the API path after `/v1`. When set, it **replaces** the default catalog — only tools you list are exposed.
 
 ### Token claims (expected shape)
 
@@ -56,11 +53,12 @@ The JWT payload should include at least:
 
 ## Upgrading to v1.4.0
 
-**No config changes required** for most users. If your MCP client config sets only `TRANSCODES_TOKEN` (the typical v1.3.0 setup), v1.4.0 behaves identically by default — the production backend URL and tool catalog moved from build-time CI substitution into `src/constants.ts` as explicit defaults.
+**No config changes required** for most users. If your MCP client config sets only `TRANSCODES_TOKEN` (the typical v1.3.0 setup), v1.4.0 behaves identically by default — the production backend URL and tool catalog moved from build-time CI substitution into `src/constants.ts` as explicit constants.
 
 What changed:
-- **Runtime env overrides now actually work.** In v1.3.0, setting `TRANSCODES_BACKEND_URL` or `TRANSCODES_BACKEND_ENDPOINTS` in your client config was silently ignored because those identifiers had been replaced with literals at build time. v1.4.0 removes the substitution step, so overrides take effect. Useful for pointing at a local backend in dev (`TRANSCODES_BACKEND_URL=http://localhost:3500`) or restricting the tool surface.
-- **`TRANSCODES_TOKEN` stays required.** Missing token still throws at startup. Nothing else is required.
+- **`TRANSCODES_BACKEND_URL` runtime override now actually works.** In v1.3.0, setting it in your client config was silently ignored because the identifier had been replaced with a literal at build time. v1.4.0 removes the substitution step, so the override takes effect. Useful for pointing at a local backend in dev (`TRANSCODES_BACKEND_URL=http://localhost:3500`).
+- **`TRANSCODES_BACKEND_ENDPOINTS` env is gone.** The tool catalog is now a library-internal constant (`DEFAULT_ENDPOINT_MAP` in `src/constants.ts`) and is no longer configurable via env. If you were setting that var in v1.3.0 it was already being silently overridden by the baked-in default, so removing it is a no-op for existing behavior.
+- **`TRANSCODES_TOKEN` stays required.** Missing token still throws at startup.
 
 ### Coming from v1.2.1 or older?
 

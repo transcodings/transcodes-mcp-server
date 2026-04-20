@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { loadConfig } from '../config.ts';
 import {
   DEFAULT_BACKEND_URL,
-  DEFAULT_ENDPOINT_MAP_JSON,
+  DEFAULT_ENDPOINT_MAP,
 } from '../constants.ts';
 
 afterEach(() => {
@@ -76,51 +76,14 @@ describe('loadConfig', () => {
     expect(config.token).toBeTruthy();
   });
 
-  it('falls back to DEFAULT_ENDPOINT_MAP_JSON when TRANSCODES_BACKEND_ENDPOINTS is missing', () => {
+  it('always builds endpointMap from DEFAULT_ENDPOINT_MAP', () => {
     stubValidToken();
     vi.stubEnv('TRANSCODES_BACKEND_URL', 'https://api.example.com');
-    vi.stubEnv('TRANSCODES_BACKEND_ENDPOINTS', '');
     const config = loadConfig();
-    const defaults: Record<string, string> = JSON.parse(DEFAULT_ENDPOINT_MAP_JSON);
-    expect(config.endpointMap.size).toBe(Object.keys(defaults).length);
-    // spot check a handful of known entries
+    const defaultKeys = Object.keys(DEFAULT_ENDPOINT_MAP);
+    expect(config.endpointMap.size).toBe(defaultKeys.length);
     expect(config.endpointMap.get('get_project')).toBe('/project');
     expect(config.endpointMap.get('get_member')).toBe('/auth/member');
     expect(config.endpointMap.get('membership_plans')).toBe('/membership/plans');
-  });
-
-  it('env TRANSCODES_BACKEND_ENDPOINTS overrides the default', () => {
-    stubValidToken();
-    vi.stubEnv('TRANSCODES_BACKEND_URL', 'https://api.example.com');
-    vi.stubEnv(
-      'TRANSCODES_BACKEND_ENDPOINTS',
-      '{"get_project":"/project","list_members":"/members"}',
-    );
-    const config = loadConfig();
-    expect(config.endpointMap.size).toBe(2);
-    expect(config.endpointMap.get('get_project')).toBe('/project');
-    expect(config.endpointMap.get('list_members')).toBe('/members');
-  });
-
-  it('throws on invalid ENDPOINTS JSON (array)', () => {
-    stubValidToken();
-    vi.stubEnv('TRANSCODES_BACKEND_URL', 'https://api.example.com');
-    vi.stubEnv('TRANSCODES_BACKEND_ENDPOINTS', '[1,2,3]');
-    expect(() => loadConfig()).toThrow('must be valid JSON');
-  });
-
-  it('throws when ENDPOINTS values are not strings', () => {
-    stubValidToken();
-    vi.stubEnv('TRANSCODES_BACKEND_URL', 'https://api.example.com');
-    vi.stubEnv('TRANSCODES_BACKEND_ENDPOINTS', '{"tool": 123}');
-    expect(() => loadConfig()).toThrow('must be valid JSON');
-  });
-
-  it('throws when env-provided ENDPOINTS is an empty object', () => {
-    // 빈 문자열은 default 로 폴백되지만, 명시적 `{}` 는 invalid 로 취급.
-    stubValidToken();
-    vi.stubEnv('TRANSCODES_BACKEND_URL', 'https://api.example.com');
-    vi.stubEnv('TRANSCODES_BACKEND_ENDPOINTS', '{}');
-    expect(() => loadConfig()).toThrow('at least one tool');
   });
 });

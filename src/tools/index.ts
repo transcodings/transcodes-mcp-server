@@ -1,6 +1,7 @@
 /**
  * MCP tool registry: merges per-domain arrays and exposes only list/dispatch.
- * Actual URL paths are resolved exclusively from the TRANSCODES_BACKEND_ENDPOINTS map (tool-utils.req).
+ * Actual URL paths are resolved exclusively from the endpoint map built from
+ * DEFAULT_ENDPOINT_MAP (src/constants.ts) in tool-utils.req.
  */
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';

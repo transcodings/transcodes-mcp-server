@@ -5,25 +5,21 @@
  *
  * 배경: v1.x 시절 `.github/workflows/release.yml` 은 빌드 전에 소스 코드의
  * `process.env.TRANSCODES_*` 참조를 GitHub secret 의 리터럴 값으로 치환했음.
- * 결과적으로 배포된 dist 가 런타임 env override 를 무시했고, 프로덕션 URL /
- * 엔드포인트 맵이 tarball 에 박혀있었음.
+ * 결과적으로 배포된 dist 가 런타임 env override 를 무시했음.
  *
  * 이 가드는 CI 치환이 다시 도입되는 회귀를 차단함:
- *   dist/*.js 안에 `process.env.TRANSCODES_BACKEND_URL` 과
- *   `process.env.TRANSCODES_BACKEND_ENDPOINTS` 참조가 반드시 유지되어 있어야 함.
- *   (치환이 일어났다면 이 식별자가 리터럴 문자열로 대체되어 사라짐)
+ *   dist/*.js 안에 `process.env.TRANSCODES_BACKEND_URL` 참조가 반드시
+ *   유지되어 있어야 함. (치환이 일어났다면 이 식별자가 리터럴 문자열로
+ *   대체되어 사라짐)
  *
  * `src/constants.ts` 에 명시적으로 커밋된 기본값은 정상 dist 출력이므로
- * 이 가드는 그 상수 리터럴을 검사하지 않음. 별도 도메인 blocklist 는 없음.
+ * 이 가드는 그 상수 리터럴을 검사하지 않음.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const REQUIRED_SOURCE_REFS = [
-  'process.env.TRANSCODES_BACKEND_URL',
-  'process.env.TRANSCODES_BACKEND_ENDPOINTS',
-];
+const REQUIRED_SOURCE_REFS = ['process.env.TRANSCODES_BACKEND_URL'];
 
 /**
  * @typedef {{ok: true} | {ok: false, reason: string, detail: string}} VerifyResult

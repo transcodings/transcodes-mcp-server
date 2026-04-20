@@ -31,14 +31,13 @@ describe('verifyDist', () => {
     rmSync(tmpRoot, { recursive: true, force: true });
   });
 
-  it('passes when both process.env references survive in a single *.js', () => {
+  it('passes when process.env.TRANSCODES_BACKEND_URL survives in *.js', () => {
     writeFixture(
       distDir,
       'config.js',
       `export function loadConfig(){
          const u = process.env.TRANSCODES_BACKEND_URL;
-         const e = process.env.TRANSCODES_BACKEND_ENDPOINTS;
-         return { u, e };
+         return { u };
        }\n`
     );
 
@@ -46,16 +45,12 @@ describe('verifyDist', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('passes when refs are split across multiple *.js files', () => {
+  it('passes when ref lives in a different *.js than config', () => {
+    writeFixture(distDir, 'config.js', '// no env refs here\n');
     writeFixture(
       distDir,
       'url.js',
       'export const u = process.env.TRANSCODES_BACKEND_URL;\n'
-    );
-    writeFixture(
-      distDir,
-      'endpoints.js',
-      'export const e = process.env.TRANSCODES_BACKEND_ENDPOINTS;\n'
     );
 
     const result: VerifyResult = verifyDist(distDir);
@@ -63,12 +58,10 @@ describe('verifyDist', () => {
   });
 
   it('fails when TRANSCODES_BACKEND_URL reference is missing (substitution detected)', () => {
-    // URL 은 리터럴로 대체되어 사라지고 ENDPOINTS 참조만 남은 경우
     writeFixture(
       distDir,
       'config.js',
-      `const u = "https://transcodesapis.com";
-       const e = process.env.TRANSCODES_BACKEND_ENDPOINTS;\n`
+      `const u = "https://transcodesapis.com";\n`
     );
 
     const result: VerifyResult = verifyDist(distDir);
@@ -76,21 +69,6 @@ describe('verifyDist', () => {
     if (!result.ok) {
       expect(result.reason).toBe('substitution_detected');
       expect(result.detail).toContain('process.env.TRANSCODES_BACKEND_URL');
-    }
-  });
-
-  it('fails when both references are missing (full substitution)', () => {
-    writeFixture(
-      distDir,
-      'config.js',
-      `const u = "https://example.invalid";
-       const e = '{"tool":"/path"}';\n`
-    );
-
-    const result: VerifyResult = verifyDist(distDir);
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.reason).toBe('substitution_detected');
     }
   });
 

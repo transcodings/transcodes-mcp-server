@@ -33,7 +33,7 @@ export const httpTools: ProxyTool[] = [
             ok: false,
             blocked: true,
             message:
-              "Tool 'transcodes_http_request' is not enabled. Add it to TRANSCODES_BACKEND_ENDPOINTS.",
+              "Tool 'transcodes_http_request' is not enabled. Add it to DEFAULT_ENDPOINT_MAP in src/constants.ts and rebuild.",
           },
           null,
           2

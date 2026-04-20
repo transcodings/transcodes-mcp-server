@@ -1,28 +1,27 @@
 /**
  * SDK 내부 기본값.
  *
- * 고객은 MCP 클라이언트 env 로 override 할 수 있지만, 일반적인 경우에는
- * `TRANSCODES_TOKEN` 만 설정하면 됨. `TRANSCODES_BACKEND_URL` 과
- * `TRANSCODES_BACKEND_ENDPOINTS` 는 여기 정의된 기본값으로 폴백됨.
+ * `DEFAULT_BACKEND_URL` 는 `TRANSCODES_BACKEND_URL` env 로 override 할 수 있지만,
+ * `DEFAULT_ENDPOINT_MAP` 은 SDK 내부 구현 상수로 **고정**됨. MCP tool 이름 → API
+ * 경로 매핑은 라이브러리 본인의 인터페이스 계약이므로 런타임에서 바꿀 이유가 없음.
  *
- * 이 값들은 과거(v1.x) GitHub Actions release workflow 가 빌드 시점에
- * 소스 파일에 문자열 치환으로 주입하던 것과 동일한 값. THT-260 에서 CI 치환을
- * 제거하고 동일한 값을 레포 내 상수로 옮겨 (1) runtime env override 가 실제로
- * 동작하고 (2) 레포에서 값이 visible 해 유지보수가 가능해짐.
+ * 이 값들은 과거(v1.x) GitHub Actions release workflow 가 빌드 시점에 소스
+ * 파일에 문자열 치환으로 주입하던 것과 동일한 값. THT-260 에서 CI 치환을 제거하고
+ * 동일한 값을 레포 내 상수로 옮겨 (1) `TRANSCODES_BACKEND_URL` runtime override 가
+ * 실제로 동작하고 (2) 레포에서 값이 visible 해 유지보수가 가능해짐.
  *
  * Override 예시 (dev):
  *   TRANSCODES_BACKEND_URL=http://localhost:3500
- *   TRANSCODES_BACKEND_ENDPOINTS='{"get_project":"/project"}'
  */
 
 export const DEFAULT_BACKEND_URL = 'https://transcodesapis.com';
 
 /**
- * MCP tool 이름 → `/v1` 뒤 API path 맵 (JSON 문자열).
+ * MCP tool 이름 → `/v1` 뒤 API path 맵.
  * 경로 `"*"` 는 내장 tool (백엔드 호출 없음) 을 의미.
- * `config.ts` 의 `parseEndpointMapJson()` 에서 Map 으로 변환됨.
+ * `config.ts` 의 `loadConfig()` 에서 Map 으로 변환됨.
  */
-export const DEFAULT_ENDPOINT_MAP_JSON = JSON.stringify({
+export const DEFAULT_ENDPOINT_MAP: Readonly<Record<string, string>> = {
   // Meta / built-in tools (경로 없음)
   get_integration_guide: '*',
   book_a_demo: '*',
@@ -98,4 +97,4 @@ export const DEFAULT_ENDPOINT_MAP_JSON = JSON.stringify({
   // Step-up auth (temp session)
   create_stepup_session: '/auth/temp-session/step-up/session',
   poll_stepup_session: '/auth/temp-session/step-up/session',
-});
+};

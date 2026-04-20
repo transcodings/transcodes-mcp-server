@@ -3,20 +3,21 @@
  * Reads values from environment variables set in the MCP client config
  * (Cursor / Claude Desktop mcp.json → `env` block).
  *
- * End users only need to set `TRANSCODES_TOKEN`. `TRANSCODES_BACKEND_URL` and
- * `TRANSCODES_BACKEND_ENDPOINTS` are SDK internals that fall back to the values
- * defined in `src/constants.ts`; set them only when overriding (e.g. pointing
- * at localhost in dev).
+ * End users only need to set `TRANSCODES_TOKEN`. `TRANSCODES_BACKEND_URL` is an
+ * SDK internal that falls back to `DEFAULT_BACKEND_URL` in `src/constants.ts`;
+ * set it only when overriding (e.g. pointing at localhost in dev). The tool
+ * name → API path map is a library-internal contract and is not configurable
+ * at runtime.
  *
- * CI WARNING — 빌드 시점에 이 파일의 `process.env.TRANSCODES_*` 참조를
- * 리터럴 값으로 치환하지 말 것. 치환하면 runtime env override 가 무력화됨.
- * 회귀 방지 가드: `scripts/verify-dist.js` (positive check — process.env
- * references must survive in the compiled dist).
+ * CI WARNING — 빌드 시점에 이 파일의 `process.env.TRANSCODES_BACKEND_URL`
+ * 참조를 리터럴 값으로 치환하지 말 것. 치환하면 runtime env override 가 무력화됨.
+ * 회귀 방지 가드: `scripts/verify-dist.js` (positive check — the identifier
+ * must survive in compiled dist).
  * 배경: THT-260.
  */
 import {
   DEFAULT_BACKEND_URL,
-  DEFAULT_ENDPOINT_MAP_JSON,
+  DEFAULT_ENDPOINT_MAP,
 } from './constants.ts';
 import { parseMemberAccessToken } from './token.ts';
 
@@ -42,27 +43,11 @@ export type ProxyConfig = {
   memberId: string;
   /** Set after poll_stepup_session reports verified. */
   verifiedStepup?: VerifiedStepup;
-  /** Tool name → path after `/v1`. Defaults to DEFAULT_ENDPOINT_MAP_JSON; env override supported. */
+  /** Tool name → path after `/v1`. Always derived from DEFAULT_ENDPOINT_MAP. */
   endpointMap: Map<string, string>;
 };
 
-/** TRANSCODES_BACKEND_ENDPOINTS JSON string → Map (values must be string paths). */
-function parseEndpointMapJson(raw: string): Map<string, string> {
-  const parsed: unknown = JSON.parse(raw);
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    throw new Error('must be a JSON object');
-  }
-  const map = new Map<string, string>();
-  for (const [k, v] of Object.entries(parsed)) {
-    if (typeof v !== 'string') {
-      throw new Error(`value for "${k}" must be a string`);
-    }
-    map.set(k, v);
-  }
-  return map;
-}
-
-/** Assembles ProxyConfig from process.env (with constants.ts fallback). dotenv is loaded earlier in index.ts. */
+/** Assembles ProxyConfig from process.env. dotenv is loaded earlier in index.ts. */
 export function loadConfig(): ProxyConfig {
   const rawUrl =
     process.env.TRANSCODES_BACKEND_URL?.trim() || DEFAULT_BACKEND_URL;
@@ -101,23 +86,9 @@ export function loadConfig(): ProxyConfig {
     throw new Error(`TRANSCODES_TOKEN: ${detail}`);
   }
 
-  const endpointsRaw =
-    process.env.TRANSCODES_BACKEND_ENDPOINTS?.trim() ||
-    DEFAULT_ENDPOINT_MAP_JSON;
-  let endpointMap: Map<string, string>;
-  try {
-    endpointMap = parseEndpointMapJson(endpointsRaw);
-  } catch (e) {
-    const detail = e instanceof Error ? e.message : String(e);
-    throw new Error(
-      `TRANSCODES_BACKEND_ENDPOINTS must be valid JSON: {"tool":"/path",...} — ${detail}`
-    );
-  }
-  if (endpointMap.size === 0) {
-    throw new Error(
-      'TRANSCODES_BACKEND_ENDPOINTS must define at least one tool'
-    );
-  }
+  const endpointMap = new Map<string, string>(
+    Object.entries(DEFAULT_ENDPOINT_MAP)
+  );
 
   return {
     backendUrl,

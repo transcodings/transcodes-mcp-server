@@ -105,7 +105,7 @@ const UPGRADE_HINT =
   'Would you like to upgrade your plan? Use the membership_create_checkout_session tool to instantly generate a Stripe Checkout link for the Standard plan.';
 
 /**
- * Resolves the final URL from TRANSCODES_BACKEND_ENDPOINTS + optional pathSuffix and makes the request.
+ * Resolves the final URL from the endpoint map (see src/constants.ts → DEFAULT_ENDPOINT_MAP) + optional pathSuffix and makes the request.
  * Full URL: `${apiBaseV1}${base}${pathSuffix}` (see client.ts — path is after `/v1`).
  *
  * Sensitive tools (each handler calls `requireStepup` first and clears `verifiedStepup` on completion):
@@ -124,7 +124,7 @@ export async function req(
   const base = map.get(toolName);
   if (!base) {
     return blockedJson(
-      `Tool '${toolName}' is not enabled. Add it to TRANSCODES_BACKEND_ENDPOINTS.`
+      `Tool '${toolName}' is not enabled. Add it to DEFAULT_ENDPOINT_MAP in src/constants.ts and rebuild.`
     );
   }
   const path = pathSuffix ? `${base}${pathSuffix}` : base;

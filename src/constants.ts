@@ -14,7 +14,7 @@
  *   TRANSCODES_BACKEND_URL=http://localhost:3500
  */
 
-export const DEFAULT_BACKEND_URL = 'https://transcodesapis.com';
+export const DEFAULT_BACKEND_URL = 'https://api.transcodesapis.com';
 
 /**
  * MCP tool 이름 → `/v1` 뒤 API path 맵.

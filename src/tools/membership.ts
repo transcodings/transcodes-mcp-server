@@ -94,10 +94,10 @@ export const membershipTools: ProxyTool[] = [
   {
     name: 'membership_create_checkout_session',
     description:
-      'MCP checkout: POST /v1/membership/mcp/session — creates a Stripe Checkout session for the organization in TRANSCODES_TOKEN (oid claim) and returns a one-time redirect URL. ' +
+      'MCP checkout: POST /v1/membership/mcp/session — creates a Stripe Checkout session for the organization bound to the MAT (x-transcodes-token) and returns a one-time redirect URL. ' +
       'Use for plan upgrade or first purchase (e.g. free → standard). ' +
       'Body: price_id from membership_plans; optional mode: "subscription" (default) | "payment" | "setup". ' +
-      'organization_id is injected automatically from the token — do not pass it. ' +
+      'Organization is resolved server-side from the authenticated principal — do not pass organization_id in the body. ' +
       'The returned URL expires after a short window — redirect the user immediately after receiving it.',
     inputSchema: {
       type: 'object',
@@ -105,7 +105,7 @@ export const membershipTools: ProxyTool[] = [
         body: {
           type: 'object',
           description:
-            'CreateMcpCheckoutSessionDto: price_id (required) from membership_plans; mode (optional) one of "subscription" (default) | "payment" | "setup". organization_id is set from TRANSCODES_TOKEN by the server.',
+            'CreateMcpCheckoutSessionDto: price_id (required) from membership_plans; mode (optional) one of "subscription" (default) | "payment" | "setup". organization_id is not sent — the server uses the MAT principal only.',
           properties: {
             price_id: {
               type: 'string',
@@ -127,10 +127,7 @@ export const membershipTools: ProxyTool[] = [
         config,
         {
           method: 'POST',
-          body: {
-            ...parse.record(a.body),
-            organization_id: config.organizationId,
-          },
+          body: parse.record(a.body),
         },
         'membership_create_checkout_session'
       ),

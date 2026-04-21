@@ -105,7 +105,7 @@ const UPGRADE_HINT =
   'Would you like to upgrade your plan? Use the membership_create_checkout_session tool to instantly generate a Stripe Checkout link for the Standard plan.';
 
 /**
- * Resolves the final URL from TRANSCODES_BACKEND_ENDPOINTS + optional pathSuffix and makes the request.
+ * Resolves the final URL from the endpoint map (see src/constants.ts → DEFAULT_ENDPOINT_MAP) + optional pathSuffix and makes the request.
  * Full URL: `${apiBaseV1}${base}${pathSuffix}` (see client.ts — path is after `/v1`).
  *
  * Sensitive tools (each handler calls `requireStepup` first and clears `verifiedStepup` on completion):
@@ -124,7 +124,15 @@ export async function req(
   const base = map.get(toolName);
   if (!base) {
     return blockedJson(
-      `Tool '${toolName}' is not enabled. Add it to TRANSCODES_BACKEND_ENDPOINTS.`
+      `Tool '${toolName}' is not enabled. Add it to DEFAULT_ENDPOINT_MAP in src/constants.ts and rebuild.`
+    );
+  }
+  // '*' 는 백엔드 호출 없이 클라이언트 측에서 처리되는 built-in tool 마커.
+  // 이런 tool 은 자체 핸들러에서 직접 로직을 수행해야 하며 req() 로 들어오면 안 됨.
+  // defense-in-depth: 미래에 실수로 req() 를 호출해도 `${apiBaseV1}*` 같은 깨진 URL 생성 차단.
+  if (base === '*') {
+    return blockedJson(
+      `Tool '${toolName}' is a built-in tool (no backend request). It must be handled by its own tool handler, not routed through req().`
     );
   }
   const path = pathSuffix ? `${base}${pathSuffix}` : base;

@@ -17,6 +17,7 @@ export const authenticatorsTools: ProxyTool[] = [
         member_id: { type: 'string' },
         id: { type: 'string', description: 'credential id' },
       },
+      required: ['member_id', 'id'],
     },
     handler: async (a, config) =>
       req(
@@ -35,10 +36,11 @@ export const authenticatorsTools: ProxyTool[] = [
   {
     name: 'list_authenticators',
     description:
-      'List all WebAuthn authenticators for a member. Separate from the passkey service.',
+      'List all WebAuthn authenticators for a member. Separate from the passkey service. Requires member_id.',
     inputSchema: {
       type: 'object',
       properties: { member_id: { type: 'string' } },
+      required: ['member_id'],
     },
     handler: async (a, config) =>
       req(

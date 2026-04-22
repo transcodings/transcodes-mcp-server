@@ -10,10 +10,11 @@ export const passkeysTools: ProxyTool[] = [
   {
     name: 'list_passkeys',
     description:
-      'List passkeys for a member. Server typically filters by project rp_id.',
+      'List passkeys for a member. Server typically filters by project rp_id. Requires member_id.',
     inputSchema: {
       type: 'object',
       properties: { member_id: { type: 'string' } },
+      required: ['member_id'],
     },
     handler: async (a, config) =>
       req(

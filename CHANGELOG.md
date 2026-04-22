@@ -1,5 +1,11 @@
 # @bigstrider/transcodes-mcp-server
 
+## 1.4.1
+
+### Patch Changes
+
+- 7bc1fcc: added required params
+
 ## 1.4.0
 
 ### Minor Changes

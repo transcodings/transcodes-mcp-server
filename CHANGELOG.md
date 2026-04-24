@@ -1,5 +1,11 @@
 # @bigstrider/transcodes-mcp-server
 
+## 1.4.2
+
+### Patch Changes
+
+- 7279d9c: removed anyOf syntax from member tool
+
 ## 1.4.1
 
 ### Patch Changes

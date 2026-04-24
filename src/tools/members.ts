@@ -20,14 +20,19 @@ export const membersTools: ProxyTool[] = [
   {
     name: 'get_member',
     description:
-      'Get one member profile. Provide `member_id` or `email` (one is required). Use for support lookups and auth debugging.',
+      'Get one member profile. Pass `member_id` OR `email` — at least one is required (never omit both). Use for support lookups and auth debugging.',
     inputSchema: {
       type: 'object',
       properties: {
-        member_id: { type: 'string' },
-        email: { type: 'string' },
+        member_id: {
+          type: 'string',
+          description: 'Member public id. Provide this OR email, not neither.',
+        },
+        email: {
+          type: 'string',
+          description: 'Member email. Provide this OR member_id, not neither.',
+        },
       },
-      anyOf: [{ required: ['member_id'] }, { required: ['email'] }],
     },
     handler: async (a, config) =>
       req(

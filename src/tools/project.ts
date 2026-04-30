@@ -9,7 +9,7 @@ const MSG_PROJECT_PWA_AUTH_CONSOLE =
 
 /**
  * `/v1/project/...`
- * - get_project:  GET /project/:project_id — fetch a single project
+ * - get_project:  GET /project/:project_id — 토큰의 pid 클레임으로 고정 (사용자 입력 X, 테넌시 우회 차단)
  * - get_projects: GET /project/organization/:organization_id — list an organization's projects
  * - PWA / authentication configuration changes are console-only (project_pwa_auth_console)
  */
@@ -17,22 +17,16 @@ export const projectTools: ProxyTool[] = [
   {
     name: 'get_project',
     description:
-      'Fetch a single project by its ID. ' +
+      'Fetch the active project (fixed by TRANSCODES_TOKEN pid claim). ' +
       'Returns all information about the project — including toolkit, pwa, domain_url, title, description, and created/updated timestamps. ' +
-      'Use this to retrieve the complete project details in one call. ' +
-      'Requires project_id.',
+      'No arguments — project is determined by the token.',
     inputSchema: {
       type: 'object',
-      properties: {
-        project_id: {
-          type: 'string',
-          description: 'Root project public ID to look up.',
-        },
-      },
-      required: ['project_id'],
+      properties: {},
+      required: [],
     },
-    handler: async (a, config) =>
-      req(config, { method: 'GET' }, 'get_project', `/${String(a.project_id)}`),
+    handler: async (_a, config) =>
+      req(config, { method: 'GET' }, 'get_project', `/${config.projectId}`),
   },
 
   {

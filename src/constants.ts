@@ -27,7 +27,6 @@ export const DEFAULT_ENDPOINT_MAP: Readonly<Record<string, string>> = {
   book_a_demo: '*',
   get_demo_videos: '*',
   get_documentation: '*',
-  transcodes_http_request: '*',
 
   // Project
   get_project: '/project',

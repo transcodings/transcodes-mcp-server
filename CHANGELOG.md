@@ -1,5 +1,11 @@
 # @bigstrider/transcodes-mcp-server
 
+## 1.4.3
+
+### Patch Changes
+
+- 63e1982: fixed security errors
+
 ## 1.4.2
 
 ### Patch Changes
